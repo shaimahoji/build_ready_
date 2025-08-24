@@ -8,7 +8,8 @@ bool DynamicLoader::loadAlgorithmLibrary(const std::string& path, const std::str
 
     registrar.createAlgorithmFactoryEntry(name);  // Prepares new entry
 
-    void* handle = dlopen(path.c_str(), RTLD_NOW);
+    //void* handle = dlopen(path.c_str(), RTLD_NOW);
+    void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!handle) {
         error_stream << "[DLERROR] Failed to open: " << path << "\nError: " << dlerror() << std::endl;
         registrar.removeLast();  // Rollback entry

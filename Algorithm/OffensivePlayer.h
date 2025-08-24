@@ -32,7 +32,7 @@ using Direction = UserCommon_322719139_211961057::Direction;
 using MissionPlan = UserCommon_322719139_211961057::MissionPlan;
 using PathResult  = UserCommon_322719139_211961057::PathResult;
 
-class OffensivePlayer : public Player {
+class Player_322719139_211961057_A : public Player {
 private:
     // Player identification
     int player_index_;
@@ -136,10 +136,10 @@ private:
     std::unordered_map<size_t, std::vector<std::pair<size_t, size_t>>> paths_per_missions;
 
 public:
-    OffensivePlayer(int player_index, size_t board_width, size_t board_height, size_t max_steps, size_t num_shells);
-    ~OffensivePlayer() override = default;
+    Player_322719139_211961057_A(int player_index, size_t board_width, size_t board_height, size_t max_steps, size_t num_shells);
+    ~Player_322719139_211961057_A() override = default;
 
-    OffensivePlayer(const OffensivePlayer& other);
+    Player_322719139_211961057_A(const Player_322719139_211961057_A& other);
     
     void updateTankWithBattleInfo(TankAlgorithm& tank, SatelliteView& satellite_view) override;
 

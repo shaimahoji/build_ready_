@@ -7,13 +7,25 @@
 
 #include "GameManager.h"
 
+#include "../common/AbstractGameManager.h"  // defines GameManagerFactory
 #include "../common/GameManagerRegistration.h"
 
 using namespace UserCommon_322719139_211961057;
 
+// Static initializer object that prints during global/static init
+struct _StartupDebugPrinter {
+    _StartupDebugPrinter() {
+        std::cout << "[DEBUG] very top of GameManager.cpp\n";
+    }
+};
+
+// This runs before main, even before your GameManager constructor
+static _StartupDebugPrinter _startup_debug_printer;
+// --------------------
+
 namespace GameManager_322719139_211961057 {
 
-GameManager::GameManager(bool verbose)
+GameManager_322719139_211961057_A::GameManager_322719139_211961057_A(bool verbose)
     : max_steps_(5000), // The following are initial values, they're updated in readBoard
       num_shells_(16),
       overall_shells(0),
@@ -21,16 +33,19 @@ GameManager::GameManager(bool verbose)
       cols_(0),
       current_step_(0) {
     
-    // Initialize players vector
-    players_.resize(2);  // Two players
-    // tanks_ will be populated during board reading in spawn order
+    std::cout << "[DEBUG] GameManager constructor start\n";
+
+    this->players_.resize(2); // if this crashes, we'll see it
+    std::cout << "[DEBUG] players_ resized\n";
 
     if (verbose) {
         std::cout << "[GameManager] Verbose mode enabled.\n";
     }
+
+    std::cout << "[DEBUG] GameManager constructor end\n";
 }
 
-GameManager::~GameManager() {
+GameManager_322719139_211961057_A::~GameManager_322719139_211961057_A() {
     if (output_stream_.is_open()) {
         output_stream_.close();
     }
@@ -46,7 +61,7 @@ GameManager::~GameManager() {
 /* initializing the Game  */
 /**************************/
 
-void GameManager::readBoardFromSatellite(
+void GameManager_322719139_211961057_A::readBoardFromSatellite(
     size_t map_width,
     size_t map_height,
     const SatelliteView& map,
@@ -82,7 +97,7 @@ void GameManager::readBoardFromSatellite(
 //HW2 implementation so far : the one i want to keep
 // Assuming that the players and factories have been initialized in run(...),
 // this function initializes tanks based on the provided tank positions.
-void GameManager::initializeTanks(
+void GameManager_322719139_211961057_A::initializeTanks(
     const std::map<int, std::vector<std::pair<size_t, size_t>>>& player_tank_positions,
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory
@@ -146,7 +161,7 @@ void GameManager::initializeTanks(
 }
 
 /********* Helper functions to make readBoard more concise and readable ************/
-void GameManager::parseHeaderLine(const std::string& line, const std::string& key, size_t& out) {
+void GameManager_322719139_211961057_A::parseHeaderLine(const std::string& line, const std::string& key, size_t& out) {
     if (line.find(key) != std::string::npos) {
         size_t pos = line.find('=');
         if (pos != std::string::npos) {
@@ -161,7 +176,7 @@ void GameManager::parseHeaderLine(const std::string& line, const std::string& ke
     }
 }
 
-void GameManager::processBoardChar(char& c, size_t col, size_t row,
+void GameManager_322719139_211961057_A::processBoardChar(char& c, size_t col, size_t row,
                                    std::map<int, std::vector<std::pair<size_t, size_t>>>& player_tank_positions,
                                    std::string& warnings, bool& has_warnings) {
     if (!isValidCellChar(c)) {
@@ -196,7 +211,7 @@ void GameManager::processBoardChar(char& c, size_t col, size_t row,
     }
 }
 
-void GameManager::writeWarningsToFile(const std::string& warnings) {
+void GameManager_322719139_211961057_A::writeWarningsToFile(const std::string& warnings) {
     std::ofstream error_file("input_errors.txt");
     if (error_file.is_open()) {
         error_file << warnings;
@@ -211,7 +226,7 @@ void GameManager::writeWarningsToFile(const std::string& warnings) {
 /* Running the Game  */
 /*********************/
 /* ---------- overridden from AbstractGameManager ---------- */
-GameResult GameManager::run(
+GameResult GameManager_322719139_211961057_A::run(
     size_t map_width, size_t map_height,
     const SatelliteView& map, std::string map_name,
     size_t max_steps, size_t num_shells,
@@ -225,9 +240,15 @@ GameResult GameManager::run(
     num_shells_ = num_shells;
 
     // Step 2: Initialize players
-    players_.resize(2);
-    players_[0] = &player1;
-    players_[1] = &player2;
+    //floating attempt
+    //players_.resize(2);
+    //players_[0] = &player1;
+    //players_[1] = &player2;
+
+    this->players_.resize(2);
+    this->players_[0] = static_cast<void*>(&player1);
+    this->players_[1] = static_cast<void*>(&player2);
+
 
     // Step 3: Read board from SatelliteView + Initialize tanks by calling initializePlayersAndTanks
     readBoardFromSatellite(map_width, map_height, map, player1_tank_algo_factory, player2_tank_algo_factory);    
@@ -290,7 +311,7 @@ GameResult GameManager::run(
 }
 
 
-void GameManager::executeGameLoop() {
+void GameManager_322719139_211961057_A::executeGameLoop() {
     // Open output files
     output_stream_.open(output_file_);
     game_log_stream_.open(game_log_file_);
@@ -326,7 +347,7 @@ void GameManager::executeGameLoop() {
     output_stream_.close();
 }
 
-void GameManager::updateShellsStepCount() {
+void GameManager_322719139_211961057_A::updateShellsStepCount() {
     if (overall_shells == 0) {
         no_shell_steps_count_++;
     } else {
@@ -334,14 +355,14 @@ void GameManager::updateShellsStepCount() {
     }
 }
 
-void GameManager::initializeBoard() {
+void GameManager_322719139_211961057_A::initializeBoard() {
     board_.resize(rows_);
     for (auto& row : board_) {
         row.resize(cols_, ' ');
     }
 }
 
-void GameManager::updateBoard() {
+void GameManager_322719139_211961057_A::updateBoard() {
     // Clear the board
     for (auto& row : board_) {
         std::fill(row.begin(), row.end(), ' ');
@@ -385,11 +406,11 @@ void GameManager::updateBoard() {
 /*************/
 /* Printing  */
 /*************/
-void GameManager::writeOutput(const std::string& filename) {
+void GameManager_322719139_211961057_A::writeOutput(const std::string& filename) {
     output_file_ = filename;
 }
 
-void GameManager::logAction(int player_idx, int tank_idx, ActionRequest action, bool is_valid) {
+void GameManager_322719139_211961057_A::logAction(int player_idx, int tank_idx, ActionRequest action, bool is_valid) {
     // Convert action to string
     std::string action_str;
     switch (action) {
@@ -418,7 +439,7 @@ void GameManager::logAction(int player_idx, int tank_idx, ActionRequest action, 
 }
 
 
-void GameManager::logAction2(int tank_idx, ActionRequest action, bool is_valid) {
+void GameManager_322719139_211961057_A::logAction2(int tank_idx, ActionRequest action, bool is_valid) {
     // Convert action to string
     std::string action_str;
     switch (action) {
@@ -438,7 +459,7 @@ void GameManager::logAction2(int tank_idx, ActionRequest action, bool is_valid) 
     ordered_actions[tank_idx] = std::make_pair(action_str, is_valid);
 }
 
-void GameManager::logGameResult(const std::string& result, const std::string& reason) {
+void GameManager_322719139_211961057_A::logGameResult(const std::string& result, const std::string& reason) {
     if (!output_stream_.is_open()) {
         return;
     }
@@ -448,7 +469,7 @@ void GameManager::logGameResult(const std::string& result, const std::string& re
     output_stream_ << "Total Steps: " << current_step_ << "\n";
 }
 
-void GameManager::logFinalResult() {
+void GameManager_322719139_211961057_A::logFinalResult() {
     // For graceful degradation.
     std::ostream& out = (output_ok_ && output_stream_.is_open()) ? output_stream_ : std::cout;
  
@@ -515,7 +536,7 @@ void GameManager::logFinalResult() {
     }
 }
 
-void GameManager::displayBoard() const {
+void GameManager_322719139_211961057_A::displayBoard() const {
     for (const auto& row : board_) {
         for (char cell : row) {
             std::cout << cell;
@@ -524,7 +545,7 @@ void GameManager::displayBoard() const {
     }
 }
 
-void GameManager::logToFile() {
+void GameManager_322719139_211961057_A::logToFile() {
     std::ostream& out = (output_ok_ && output_stream_.is_open()) ? output_stream_ : std::cout;
 
     for (size_t i = 0; i < ordered_actions.size(); ++i) {
@@ -547,7 +568,7 @@ void GameManager::logToFile() {
 /*************************/
 /* processing Game step */
 /*************************/
-void GameManager::processGameStep() {
+void GameManager_322719139_211961057_A::processGameStep() {
     std::cout << "Processing game step " << current_step_ << "\n";
     
     // Process each tank in the unified tanks_ vector (maintains spawn order)
@@ -594,7 +615,7 @@ void GameManager::processGameStep() {
     writeVisualizationState();
 }
 
-void GameManager::handleBattleInfoRequest(int player_idx, int tank_idx) {
+void GameManager_322719139_211961057_A::handleBattleInfoRequest(int player_idx, int tank_idx) {
     // Find the tank in the unified storage
     Tank* tank = nullptr;
     int index = 0;
@@ -613,7 +634,10 @@ void GameManager::handleBattleInfoRequest(int player_idx, int tank_idx) {
     }
     
     // debugging to find error
-    if (!players_[player_idx - 1]) {
+    //floating attempt
+    //if (!players_[player_idx - 1]) {
+    if (static_cast<Player*>(this->players_[player_idx - 1])) {
+    //if (!this->players_[player_idx - 1]) {
         std::cerr << "Error: players_[" << (player_idx - 1) << "] is nullptr!\n";
         return;
     }
@@ -634,7 +658,10 @@ void GameManager::handleBattleInfoRequest(int player_idx, int tank_idx) {
           << ", tank " << tank_idx << "\n";
           
     // Update the tank with battle info
-    players_[player_idx-1]->updateTankWithBattleInfo(
+    //floating attempt
+    //players_[player_idx-1]->updateTankWithBattleInfo(
+    //this->players_[player_idx-1]->updateTankWithBattleInfo(
+    static_cast<Player*>(this->players_[player_idx - 1])->updateTankWithBattleInfo(
         *tank->algorithm, 
         satellite_view
     );
@@ -645,7 +672,7 @@ void GameManager::handleBattleInfoRequest(int player_idx, int tank_idx) {
     std::cout << "finished handleBattleInfoRequest\n";
 }
 
-void GameManager::processAction(int player_idx, int tank_idx, ActionRequest action) {
+void GameManager_322719139_211961057_A::processAction(int player_idx, int tank_idx, ActionRequest action) {
     // Find the tank data in the unified storage
     TankData* tank_data = nullptr;
     int index = 0;
@@ -721,7 +748,7 @@ void GameManager::processAction(int player_idx, int tank_idx, ActionRequest acti
 }
 
 //if we should ignore actions or cancel the current backward action
-bool GameManager::processBackwardMove(TankData* tank_data, int player_idx, int tank_idx,int index, ActionRequest action) {
+bool GameManager_322719139_211961057_A::processBackwardMove(TankData* tank_data, int player_idx, int tank_idx,int index, ActionRequest action) {
     // Handle forward move (cancel countdown)
     if (action == ActionRequest::MoveForward) {
         tank_data->in_backward_move = false;
@@ -768,7 +795,7 @@ bool GameManager::processBackwardMove(TankData* tank_data, int player_idx, int t
     return true;
 }
 
-bool GameManager::processMoveForward(TankData* tank_data) {
+bool GameManager_322719139_211961057_A::processMoveForward(TankData* tank_data) {
     auto [dx, dy] = DirectionUtil::getMovement(tank_data->direction);
     size_t new_x = (tank_data->x + dx + cols_) % cols_;
     size_t new_y = (tank_data->y + dy + rows_) % rows_;
@@ -783,7 +810,7 @@ bool GameManager::processMoveForward(TankData* tank_data) {
 }
 
 //if we are in reverse mode -or want to start counting for backward move
-bool GameManager::processMoveBackward(TankData* tank_data, int player_idx, int tank_idx,int index) {
+bool GameManager_322719139_211961057_A::processMoveBackward(TankData* tank_data, int player_idx, int tank_idx,int index) {
     if (tank_data->in_reverse_mode) {
         auto [dx, dy] = DirectionUtil::getMovement(tank_data->direction);
         size_t new_x = (tank_data->x - dx + cols_) % cols_;
@@ -805,7 +832,7 @@ bool GameManager::processMoveBackward(TankData* tank_data, int player_idx, int t
     }
 }
 
-void GameManager::processRotation(TankData* tank_data, ActionRequest action) {
+void GameManager_322719139_211961057_A::processRotation(TankData* tank_data, ActionRequest action) {
     switch (action) {
         case ActionRequest::RotateLeft45:
             tank_data->direction = DirectionUtil::rotateLeft(tank_data->direction);
@@ -824,7 +851,7 @@ void GameManager::processRotation(TankData* tank_data, ActionRequest action) {
     }
 }
 
-bool GameManager::processShoot(TankData* tank_data) {
+bool GameManager_322719139_211961057_A::processShoot(TankData* tank_data) {
     std::cout << "---------- processShoot ----------\n";
     if (tank_data->cooldown_wait || tank_data->remaining_shells <= 0) {
         std::cout << "cooldown_wait: " << tank_data->cooldown_wait 
@@ -846,7 +873,7 @@ bool GameManager::processShoot(TankData* tank_data) {
 /******************/
 /* if Game Ended  */
 /******************/
-bool GameManager::isGameOver() {
+bool GameManager_322719139_211961057_A::isGameOver() {
     // Count alive tanks per player using unified tank storage
     int player1_tanks = 0;
     int player2_tanks = 0;
@@ -877,7 +904,7 @@ bool GameManager::isGameOver() {
 /*********************/
 /* check collisions  */
 /*********************/
-void GameManager::checkCollisions() {
+void GameManager_322719139_211961057_A::checkCollisions() {
     // Temporary vectors to store indices of items to be removed
     std::vector<size_t> shells_to_remove;
     std::vector<size_t> walls_to_remove;
@@ -1000,11 +1027,11 @@ void GameManager::checkCollisions() {
 /********************/
 /* Helper functions */
 /********************/
-bool GameManager::isValidCellChar(char c) const {
+bool GameManager_322719139_211961057_A::isValidCellChar(char c) const {
     return c == '1' || c == '2' || c == '#' || c == '@' || c == ' ';
 }
 
-bool GameManager::CanMoveBackward(GameManager::TankData* tank_data){
+bool GameManager_322719139_211961057_A::CanMoveBackward(GameManager_322719139_211961057_A::TankData* tank_data){
     if (tank_data->in_backward_move && tank_data->backward_move_counter == 3)
     {
         //can preform backward move
@@ -1014,7 +1041,7 @@ bool GameManager::CanMoveBackward(GameManager::TankData* tank_data){
     return false;
 }
 
-void GameManager::updateTankCounters(GameManager::TankData* tank_data) {
+void GameManager_322719139_211961057_A::updateTankCounters(GameManager_322719139_211961057_A::TankData* tank_data) {
     // Update cooldown timer
     if (tank_data->cooldown_wait) {
         tank_data->cooldown_timer++;
@@ -1038,12 +1065,12 @@ void GameManager::updateTankCounters(GameManager::TankData* tank_data) {
     }
 }
 
-void GameManager::addShell(size_t x,size_t y,Direction dir){
+void GameManager_322719139_211961057_A::addShell(size_t x,size_t y,Direction dir){
     ShellData new_shell(x, y,dir);
     shells_.push_back(new_shell);
 }
 
-void GameManager::moveShells() {
+void GameManager_322719139_211961057_A::moveShells() {
     // Create a vector to track shells that need to be removed
     std::vector<size_t> shells_to_remove;
     
@@ -1094,7 +1121,7 @@ void GameManager::moveShells() {
     }
 }
 
-bool GameManager::checkShellCollision(size_t shell_idx, std::vector<size_t>& shells_to_remove) {
+bool GameManager_322719139_211961057_A::checkShellCollision(size_t shell_idx, std::vector<size_t>& shells_to_remove) {
     const auto& shell = shells_[shell_idx];
     bool shell_destroyed = false;
     
@@ -1178,12 +1205,12 @@ std::string toString2(Direction dir) {
 }
 
 
-void GameManager::setGameLogFile(const std::string &filename) {
+void GameManager_322719139_211961057_A::setGameLogFile(const std::string &filename) {
     game_log_file_ = filename;
 }
 
 //check
-void GameManager::setVisualizationFile(const std::string &filename) {
+void GameManager_322719139_211961057_A::setVisualizationFile(const std::string &filename) {
     visualization_file_ = filename;
 
     std::ofstream test(filename, std::ios::app);
@@ -1193,7 +1220,7 @@ void GameManager::setVisualizationFile(const std::string &filename) {
     test.close();
 }
 
-void GameManager::writeVisualizationState() {
+void GameManager_322719139_211961057_A::writeVisualizationState() {
     if (!visualization_stream_.is_open()) return;
 
     json state;
@@ -1233,13 +1260,26 @@ void GameManager::writeVisualizationState() {
     visualization_stream_.flush();
 }
 
-void GameManager::writeRoundStateJson(std::ofstream &out, int round_number) {
+void GameManager_322719139_211961057_A::writeRoundStateJson(std::ofstream &out, int round_number) {
     if (round_number >= 0 && static_cast<size_t>(round_number) < round_actions_log_.size()) {
         out << round_actions_log_[round_number] << std::endl;
     }
 }
 
-REGISTER_GAME_MANAGER(GameManager); //it looks like its wrong, according to pdf, check and if so, correct one below:
+//std::unique_ptr<AbstractGameManager> safeFactory(bool verbose) {
+//    std::cout << "[DEBUG] About to construct GameManager\n";
+//    auto ptr = std::make_unique<GameManager_322719139_211961057_A>(verbose);
+//    std::cout << "[DEBUG] Successfully constructed GameManager\n";
+//    return ptr;
+//}
+
+//GameManagerRegistration register_gm(safeFactory);
+//REGISTER_GAME_MANAGER(GameManager_322719139_211961057::GameManager_322719139_211961057_A);
+//REGISTER_GAME_MANAGER(GameManager_322719139_211961057_A); //it looks like its wrong, according to pdf, check and if so, correct one below:
 //REGISTER_GAME_MANAGER(GameManager_322719139_211961057);
 
 } // namespace GameManager_322719139_211961057
+
+// Bring the class name into global scope for the macro
+using GameManager_322719139_211961057::GameManager_322719139_211961057_A;
+REGISTER_GAME_MANAGER(GameManager_322719139_211961057_A);

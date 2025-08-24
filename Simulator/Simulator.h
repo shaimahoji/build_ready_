@@ -6,7 +6,6 @@
 #include <map>
 #include <mutex>
 
-
 #include "../common/BattleInfo.h"
 #include "../common/ActionRequest.h"
 #include "../common/TankAlgorithm.h"
@@ -62,8 +61,7 @@ public:
     void loadAlgorithms(const std::string& algorithms_folder, bool verbose);
     void loadTwoAlgorithms(const std::string& algo1_path, const std::string& algo2_path, bool verbose);
 
-    GameResult runSingleGame(const std::string &gm_name,const std::string& game_map_path, const std::string& alg1, const std::string& alg2,bool verbose);
-
+    GameResult runSingleGame(const std::string &gmName, const GameMapInfo& mapInfo, const std::string& alg1, const std::string& alg2, bool verbose);
     using GroupedResults = std::map<std::tuple<std::string, size_t, std::string>, std::vector<std::string>>;
     GroupedResults groupResults(const GameMapInfo& map_info);
 

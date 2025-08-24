@@ -17,7 +17,7 @@ using namespace UserCommon_322719139_211961057;
 
 namespace Algorithm_322719139_211961057 {
 
-OffensivePlayer::OffensivePlayer(int player_index, size_t board_width, size_t board_height, size_t max_steps, size_t num_shells)
+Player_322719139_211961057_A::Player_322719139_211961057_A(int player_index, size_t board_width, size_t board_height, size_t max_steps, size_t num_shells)
     : player_index_(player_index),
       max_steps_(max_steps),
       num_shells_(num_shells),
@@ -37,7 +37,7 @@ OffensivePlayer::OffensivePlayer(int player_index, size_t board_width, size_t bo
         num_shells_);
 }
 
-OffensivePlayer::OffensivePlayer(const OffensivePlayer& other)
+Player_322719139_211961057_A::Player_322719139_211961057_A(const Player_322719139_211961057_A& other)
     : Player(other),
       player_index_(other.player_index_),
       max_steps_(other.max_steps_),
@@ -57,10 +57,10 @@ OffensivePlayer::OffensivePlayer(const OffensivePlayer& other)
       paths_per_missions(other.paths_per_missions) {
 }
 
-void OffensivePlayer::updateTankWithBattleInfo(TankAlgorithm& tank, SatelliteView& satellite_view) {
+void Player_322719139_211961057_A::updateTankWithBattleInfo(TankAlgorithm& tank, SatelliteView& satellite_view) {
     std::cout << "---------- updateTankWithBattleInfo ---------- \n";
 
-    auto* offensive_tank = dynamic_cast<OffensiveTankAlgorithm*>(&tank);
+    auto* offensive_tank = dynamic_cast<TankAlgorithm_322719139_211961057_A*>(&tank);
     if (!offensive_tank) {
         std::cerr << "[Error] Invalid tank type\n";
         return;
@@ -141,7 +141,7 @@ void OffensivePlayer::updateTankWithBattleInfo(TankAlgorithm& tank, SatelliteVie
     offensive_tank->updateBattleInfo(battle_info);
 }
 
-void OffensivePlayer::updateBoardInfo(SatelliteView& satellite_view, int tank_index) {
+void Player_322719139_211961057_A::updateBoardInfo(SatelliteView& satellite_view, int tank_index) {
     observed_shells_.clear();
     
     size_t tank_x = 0, tank_y = 0;
@@ -193,7 +193,7 @@ void OffensivePlayer::updateBoardInfo(SatelliteView& satellite_view, int tank_in
     current_step_++;
 }
 
-int OffensivePlayer::getTankIndexFromSatellite(const SatelliteView& satellite_view) {
+int Player_322719139_211961057_A::getTankIndexFromSatellite(const SatelliteView& satellite_view) {
     int tank_index = 0;
 
     for (size_t y = 0; y < board_height_; ++y) {
@@ -212,7 +212,7 @@ int OffensivePlayer::getTankIndexFromSatellite(const SatelliteView& satellite_vi
     return -1;
 }
 
-std::vector<std::pair<size_t, size_t>> OffensivePlayer::findPathOLD(
+std::vector<std::pair<size_t, size_t>> Player_322719139_211961057_A::findPathOLD(
     size_t start_x, size_t start_y, size_t goal_x, size_t goal_y) const {
     struct Node {
         size_t x, y;
@@ -298,7 +298,7 @@ std::vector<std::pair<size_t, size_t>> OffensivePlayer::findPathOLD(
     return {};
 }
 
-Direction OffensivePlayer::estimateDirection(size_t prev_x, size_t prev_y, 
+Direction Player_322719139_211961057_A::estimateDirection(size_t prev_x, size_t prev_y, 
                                            size_t new_x, size_t new_y,Direction prev_dir) 
 {
 
@@ -324,11 +324,11 @@ Direction OffensivePlayer::estimateDirection(size_t prev_x, size_t prev_y,
     return prev_dir;
 }
 
-bool OffensivePlayer::isValidPosition(size_t x, size_t y) const {
+bool Player_322719139_211961057_A::isValidPosition(size_t x, size_t y) const {
     return x < board_width_ && y < board_height_;
 }
 
-bool OffensivePlayer::isObstacle(size_t x, size_t y) const {
+bool Player_322719139_211961057_A::isObstacle(size_t x, size_t y) const {
     if (!isValidPosition(x, y)) {
         return true;
     }
@@ -337,7 +337,7 @@ bool OffensivePlayer::isObstacle(size_t x, size_t y) const {
     return object == '#'|| object == '$' || object == '@';
 }
 
-std::vector<std::pair<size_t, size_t>> OffensivePlayer::findPath(
+std::vector<std::pair<size_t, size_t>> Player_322719139_211961057_A::findPath(
     size_t start_x, size_t start_y, size_t goal_x, size_t goal_y) const {
     struct Node {
         size_t x, y;
@@ -423,14 +423,14 @@ std::vector<std::pair<size_t, size_t>> OffensivePlayer::findPath(
     return {};
 }
 
-Direction OffensivePlayer::calculateDirection(size_t from_x, size_t from_y, size_t to_x, size_t to_y) const {
+Direction Player_322719139_211961057_A::calculateDirection(size_t from_x, size_t from_y, size_t to_x, size_t to_y) const {
     int dx = static_cast<int>(to_x) - static_cast<int>(from_x);
     int dy = static_cast<int>(to_y) - static_cast<int>(from_y);
 
     return DirectionUtil::getDirectionFromDelta(dx, dy);
 }
 
-std::vector<Direction> OffensivePlayer::getRotationSequence(Direction current_dir, Direction target_dir) const {
+std::vector<Direction> Player_322719139_211961057_A::getRotationSequence(Direction current_dir, Direction target_dir) const {
     std::vector<Direction> rotations;
     Direction temp_dir = current_dir;
     
@@ -467,7 +467,7 @@ std::vector<Direction> OffensivePlayer::getRotationSequence(Direction current_di
     return rotations;
 }
 
-std::vector<std::pair<size_t, size_t>> OffensivePlayer::predictShellPath(
+std::vector<std::pair<size_t, size_t>> Player_322719139_211961057_A::predictShellPath(
     size_t x, size_t y, Direction direction, int steps) const {
     std::vector<std::pair<size_t, size_t>> path;
     
@@ -489,7 +489,7 @@ std::vector<std::pair<size_t, size_t>> OffensivePlayer::predictShellPath(
     return path;
 }
 
-std::pair<size_t, size_t> OffensivePlayer::findClosestEnemyTank(size_t from_x, size_t from_y) const {
+std::pair<size_t, size_t> Player_322719139_211961057_A::findClosestEnemyTank(size_t from_x, size_t from_y) const {
     double min_distance = std::numeric_limits<double>::max();
     std::pair<size_t, size_t> closest = {0, 0};
     bool found = false;
@@ -507,7 +507,7 @@ std::pair<size_t, size_t> OffensivePlayer::findClosestEnemyTank(size_t from_x, s
     return found ? closest : std::make_pair(from_x, from_y);
 }
 
-bool OffensivePlayer::hasLineOfSight(size_t from_x, size_t from_y, size_t to_x, size_t to_y) const {
+bool Player_322719139_211961057_A::hasLineOfSight(size_t from_x, size_t from_y, size_t to_x, size_t to_y) const {
     int dx = std::abs(static_cast<int>(to_x) - static_cast<int>(from_x));
     int dy = std::abs(static_cast<int>(to_y) - static_cast<int>(from_y));
     int sx = from_x < to_x ? 1 : -1;
@@ -533,7 +533,7 @@ bool OffensivePlayer::hasLineOfSight(size_t from_x, size_t from_y, size_t to_x, 
     return true;
 }
 
-bool OffensivePlayer::hasLineOfSightLimited(size_t from_x, size_t from_y, size_t to_x, size_t to_y) const {
+bool Player_322719139_211961057_A::hasLineOfSightLimited(size_t from_x, size_t from_y, size_t to_x, size_t to_y) const {
     int dist = manhattanDistance(from_x, from_y, to_x, to_y);
     if (dist > 4) return false;
 
@@ -542,11 +542,11 @@ bool OffensivePlayer::hasLineOfSightLimited(size_t from_x, size_t from_y, size_t
     return hasLineOfSight(from_x, from_y, to_x, to_y);
 }
 
-int OffensivePlayer::manhattanDistance(int x1, int y1, int x2, int y2) const {
+int Player_322719139_211961057_A::manhattanDistance(int x1, int y1, int x2, int y2) const {
     return std::abs(x1 - x2) + std::abs(y1 - y2);
 }
 
-bool OffensivePlayer::canReachWithinTwoSteps(int from_x, int from_y, int to_x, int to_y) const {
+bool Player_322719139_211961057_A::canReachWithinTwoSteps(int from_x, int from_y, int to_x, int to_y) const {
     const std::vector<std::pair<int, int>> directions = {
         {1, 0}, {-1, 0}, {0, 1}, {0, -1},
         {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
@@ -571,7 +571,7 @@ bool OffensivePlayer::canReachWithinTwoSteps(int from_x, int from_y, int to_x, i
     return false;
 }
 
-void OffensivePlayer::updateMyTankPosition(size_t x, size_t y, int excluding_tank_index) {
+void Player_322719139_211961057_A::updateMyTankPosition(size_t x, size_t y, int excluding_tank_index) {
     for (size_t i = 0; i < my_tanks_.size(); ++i) {
         if (static_cast<int>(i) != excluding_tank_index) {
             if (my_tanks_[i].x == x && my_tanks_[i].y == y) {
@@ -585,7 +585,7 @@ void OffensivePlayer::updateMyTankPosition(size_t x, size_t y, int excluding_tan
     my_tanks_.push_back(TankInfo(x, y, default_direction, num_shells_));
 }
 
-void OffensivePlayer::updateEnemyTankPosition(size_t x, size_t y) {
+void Player_322719139_211961057_A::updateEnemyTankPosition(size_t x, size_t y) {
     for (auto& enemy : enemy_tanks_) {
         if (enemy.x == x && enemy.y == y) {
             enemy.last_info_step = current_step_;
@@ -597,7 +597,7 @@ void OffensivePlayer::updateEnemyTankPosition(size_t x, size_t y) {
     enemy_tanks_.push_back(TankInfo(x, y, default_direction, num_shells_));
 }
 
-void OffensivePlayer::updateWallPosition(size_t x, size_t y,bool damaged) {
+void Player_322719139_211961057_A::updateWallPosition(size_t x, size_t y,bool damaged) {
     auto it = std::find_if(known_walls_.begin(), known_walls_.end(),
         [x, y](const WallInfo& wall) {
             return wall.x == x && wall.y == y;
@@ -615,14 +615,14 @@ void OffensivePlayer::updateWallPosition(size_t x, size_t y,bool damaged) {
     }
 }
 
-void OffensivePlayer::updateMinePosition(size_t x, size_t y) {
+void Player_322719139_211961057_A::updateMinePosition(size_t x, size_t y) {
     auto it = std::find(known_mines_.begin(), known_mines_.end(), std::make_pair(x, y));
     if (it == known_mines_.end()) {
         known_mines_.push_back({x, y});
     }
 }
 
-double OffensivePlayer::calculateDistance(size_t x1, size_t y1, size_t x2, size_t y2) const {
+double Player_322719139_211961057_A::calculateDistance(size_t x1, size_t y1, size_t x2, size_t y2) const {
     int dx = std::abs(static_cast<int>(x2) - static_cast<int>(x1));
     int dy = std::abs(static_cast<int>(y2) - static_cast<int>(y1));
     
@@ -632,7 +632,7 @@ double OffensivePlayer::calculateDistance(size_t x1, size_t y1, size_t x2, size_
     return std::sqrt(dx * dx + dy * dy);
 }
 
-void OffensivePlayer::updateTargetPriorities() {
+void Player_322719139_211961057_A::updateTargetPriorities() {
     target_priorities_.clear();
     
     for (size_t i = 0; i < enemy_tanks_.size(); ++i) {
@@ -666,7 +666,7 @@ void OffensivePlayer::updateTargetPriorities() {
              });
 }
 
-void OffensivePlayer::createMissionsForTanks() {
+void Player_322719139_211961057_A::createMissionsForTanks() {
     std::cout << "---------- createMissionsForTanks ---------- \n";
     mission_plans_per_tanks.clear();
 
@@ -760,7 +760,7 @@ void OffensivePlayer::createMissionsForTanks() {
     }
 }
 
-std::optional<std::pair<int, int>> OffensivePlayer::findSafeRetreatPosition(const TankInfo& tank) const {
+std::optional<std::pair<int, int>> Player_322719139_211961057_A::findSafeRetreatPosition(const TankInfo& tank) const {
     auto [dx, dy] = DirectionUtil::getMovement(tank.direction);
     int fx = (tank.x + dx + board_width_) % board_width_;
     int fy = (tank.y + dy + board_height_) % board_height_;
@@ -810,12 +810,12 @@ std::optional<std::pair<int, int>> OffensivePlayer::findSafeRetreatPosition(cons
     return *best_it;
 }
 
-bool OffensivePlayer::isTileUnderThreat(int x, int y) const {
+bool Player_322719139_211961057_A::isTileUnderThreat(int x, int y) const {
     TankInfo dummy_tank(x, y, Direction::NONE, true);
     return isTankUnderThreat(dummy_tank);
 }
 
-MissionPlan OffensivePlayer::createMissionPlan(size_t my_tank_index, size_t enemy_tank_index) {
+MissionPlan Player_322719139_211961057_A::createMissionPlan(size_t my_tank_index, size_t enemy_tank_index) {
     std::cout << "---------- createMissionPlan for tank ---------- " 
               << my_tank_index << " targeting enemy " << enemy_tank_index << " --- \n";
     MissionPlan plan;
@@ -882,7 +882,7 @@ MissionPlan OffensivePlayer::createMissionPlan(size_t my_tank_index, size_t enem
     return plan;
 }
 
-bool OffensivePlayer::isTankUnderThreat(const TankInfo& tank) const {
+bool Player_322719139_211961057_A::isTankUnderThreat(const TankInfo& tank) const {
     const size_t threat_range = 2;
 
     for (const auto& enemy : enemy_tanks_) {
@@ -916,7 +916,7 @@ bool OffensivePlayer::isTankUnderThreat(const TankInfo& tank) const {
     return false;
 }
 
-bool OffensivePlayer::hasObstacleBetween(int x1, int y1, int x2, int y2, bool consider_mines) const {
+bool Player_322719139_211961057_A::hasObstacleBetween(int x1, int y1, int x2, int y2, bool consider_mines) const {
     int dx = x2 - x1;
     int dy = y2 - y1;
 
@@ -949,12 +949,12 @@ bool OffensivePlayer::hasObstacleBetween(int x1, int y1, int x2, int y2, bool co
     return false;
 }
 
-int OffensivePlayer::toroidalDistance(int a, int b, int size) const {
+int Player_322719139_211961057_A::toroidalDistance(int a, int b, int size) const {
     int delta = abs(a - b);
     return std::min(delta, size - delta);
 }
 
-bool OffensivePlayer::canHitTarget(size_t from_x, size_t from_y, Direction direction,
+bool Player_322719139_211961057_A::canHitTarget(size_t from_x, size_t from_y, Direction direction,
                                    size_t target_x, size_t target_y) const {
     Direction required_direction = calculateDirection(from_x, from_y, target_x, target_y);
     if (required_direction != direction)
@@ -963,7 +963,7 @@ bool OffensivePlayer::canHitTarget(size_t from_x, size_t from_y, Direction direc
     return !hasObstacleBetween(from_x, from_y, target_x, target_y, true);
 }
 
-bool OffensivePlayer::shouldAttemptHit(size_t from_x, size_t from_y, Direction direction,
+bool Player_322719139_211961057_A::shouldAttemptHit(size_t from_x, size_t from_y, Direction direction,
                                        size_t target_x, size_t target_y) const {
     int dx = toroidalDistance(from_x, target_x, board_width_);
     int dy = toroidalDistance(from_y, target_y, board_height_);
@@ -990,7 +990,7 @@ bool OffensivePlayer::shouldAttemptHit(size_t from_x, size_t from_y, Direction d
     return within_effective_range || !better_hit_possible;
 }
 
-double OffensivePlayer::scoreTargetForTank(const TankInfo& my_tank, const TankInfo& enemy_tank, const TargetPriority* priority_ptr) {
+double Player_322719139_211961057_A::scoreTargetForTank(const TankInfo& my_tank, const TankInfo& enemy_tank, const TargetPriority* priority_ptr) {
     if (!enemy_tank.is_alive) return -1e9;
 
     double score = 0;
@@ -1030,7 +1030,7 @@ double OffensivePlayer::scoreTargetForTank(const TankInfo& my_tank, const TankIn
     return score;
 }
 
-int OffensivePlayer::computeTurnsToAlign(Direction current_dir, size_t from_x, size_t from_y, size_t to_x, size_t to_y) const {
+int Player_322719139_211961057_A::computeTurnsToAlign(Direction current_dir, size_t from_x, size_t from_y, size_t to_x, size_t to_y) const {
     Direction target_dir = calculateDirection(from_x, from_y, to_x, to_y);
     
     if (current_dir == target_dir) {
@@ -1042,14 +1042,14 @@ int OffensivePlayer::computeTurnsToAlign(Direction current_dir, size_t from_x, s
     return rotations.size();
 }
 
-int OffensivePlayer::getShootingCost(char cell) {
+int Player_322719139_211961057_A::getShootingCost(char cell) {
     if (cell == '#') return 2 * (1 + 4) + 1;
     if (cell == '$') return 1 * (1 + 4) + 1;
     if (cell == '@') return INT_MAX;
     return 1;
 }
 
-PathResult OffensivePlayer::findPath(
+PathResult Player_322719139_211961057_A::findPath(
     size_t start_x, size_t start_y,
     size_t goal_x, size_t goal_y,
     const std::vector<std::vector<char>>& board_state,
@@ -1128,7 +1128,11 @@ PathResult OffensivePlayer::findPath(
 }
 
 
-REGISTER_PLAYER(OffensivePlayer); //it looks like its wrong, according to pdf, check and if so, correct one below:
+//REGISTER_PLAYER(Player_322719139_211961057_A); //it looks like its wrong, according to pdf, check and if so, correct one below:
 //REGISTER_PLAYER(Player_322719139_211961057_A);
 
 } // namespace Algorithm_322719139_211961057
+
+// Bring the class name into global scope for the macro
+using Algorithm_322719139_211961057::Player_322719139_211961057_A;
+REGISTER_PLAYER(Player_322719139_211961057_A);

@@ -31,11 +31,11 @@ using Direction = UserCommon_322719139_211961057::Direction;
 
 
 // GameManager_refactored
-class GameManager : public AbstractGameManager {
+class GameManager_322719139_211961057_A : public AbstractGameManager {
 public:
     // Properly using the factory function types
-    explicit GameManager(bool verbose);
-    ~GameManager();
+    explicit GameManager_322719139_211961057_A(bool verbose);
+    ~GameManager_322719139_211961057_A();
 
     // Previously called run();
     void executeGameLoop();
@@ -94,7 +94,9 @@ private:
 
     // HW3: GameManager should NOT own players
     //std::vector<std::unique_ptr<Player>> players_;
-    std::vector<Player*> players_;
+    //std::vector<Player*> players_;
+    //int dummy_players_[2];  // just for test
+    std::vector<void*> players_;
 
     
     // Tank data (authoritative source)
@@ -200,8 +202,8 @@ private:
     void processGameStep();
     bool isGameOver();
     bool isValidCellChar(char c) const;
-    bool CanMoveBackward(GameManager::TankData *tank_data);
-    void updateTankCounters(GameManager::TankData *tank_data);
+    bool CanMoveBackward(GameManager_322719139_211961057_A::TankData *tank_data);
+    void updateTankCounters(GameManager_322719139_211961057_A::TankData *tank_data);
     void addShell(size_t x,size_t y,Direction dir);
     void moveShells();
     bool checkShellCollision(size_t shell_idx, std::vector<size_t>& shells_to_remove);

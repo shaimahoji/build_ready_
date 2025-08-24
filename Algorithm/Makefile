@@ -6,10 +6,22 @@ NAME = Algorithm_$(ID1)_$(ID2)
 CXX = g++
 CXXFLAGS = -Wall -std=c++17 -fPIC -I../UserCommon -I../common
 
-SRC = $(wildcard *.cpp) $(wildcard ../UserCommon/*.cpp)
+# Base source files
+SRC = \
+    $(wildcard *.cpp) \
+    $(wildcard ../UserCommon/*.cpp)
+
+# ✅ EXCLUDE the following from the Algorithm build:
+# ❌ ../Simulator/PlayerRegistration.cpp
+# ❌ ../Simulator/TankAlgorithmRegistration.cpp
+# ❌ ../Simulator/AlgorithmRegistrar.cpp
+
+# You still need to include the registration *headers* in your .cpp files,
+# like: #include "../common/PlayerRegistration.h"
+
 OBJ = $(SRC:.cpp=.o)
 
-TARGET = lib$(NAME).so
+TARGET = $(NAME).so
 
 all: $(TARGET)
 

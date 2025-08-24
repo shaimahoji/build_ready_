@@ -25,10 +25,16 @@ static void parseHeaderLine(const std::string& line, const std::string& key, siz
     std::string k = line.substr(0, pos);
     std::string v = line.substr(pos + 1);
 
+    // Trim both
+    k.erase(std::remove_if(k.begin(), k.end(), ::isspace), k.end());
+    v.erase(std::remove_if(v.begin(), v.end(), ::isspace), v.end());
+
     if (k == key) {
         try {
             output = std::stoul(v);
-        } catch (...) {}
+        } catch (...) {
+            std::cerr << "[Warning] Failed to parse numeric value: " << v << " in line: " << line << "\n";
+        }
     }
 }
 
@@ -56,9 +62,16 @@ void Simulator::runComparative(
     bool verbose
 ) {
     // 1. Load managers and algorithms
+    std::cout << "[DEBUG] Loading game map...\n";
     GameMapInfo map_info = loadGameMap(game_map_path);
+
+    std::cout << "[DEBUG] Loading GameManagers...\n";
     loadGameManagers(gameManagers_folder, verbose);
+
+    std::cout << "[DEBUG] Loading algorithms...\n";
     loadTwoAlgorithms(algo1_path, algo2_path, verbose);
+
+    std::cout << "[DEBUG] Starting thread pool with " << num_threads << " threads...\n";
 
     // Get all GameManager names from the registrar
     auto& gm_registrar = GameManagerRegistrar::getGameManagerRegistrar();
@@ -98,7 +111,8 @@ void Simulator::runComparative(
 
     for (const auto& gm_name : gm_names) {
         pool.enqueue([&, gm_name]() {
-            auto result = runSingleGame(gm_name, game_map_path, alg1_name, alg2_name, verbose);
+            std::cout << "[DEBUG] Running single game with: " << gm_name << "\n";
+            auto result = runSingleGame(gm_name, map_info, alg1_name, alg2_name, verbose);
 
             std::lock_guard<std::mutex> lock(results_mutex);
             run_results.emplace_back(gm_name, std::move(result));
@@ -135,8 +149,11 @@ GameMapInfo Simulator::loadGameMap(const std::string& filename) {
     std::getline(file, line); parseHeaderLine(line, "NumShells", info.num_shells);
     std::getline(file, line); parseHeaderLine(line, "Rows", info.rows);
     std::getline(file, line); parseHeaderLine(line, "Cols", info.cols);
-
+    
+    std::cout << "[DEBUG] Before raw_board, Map size: rows = " << info.rows << ", cols = " << info.cols << "\n";
     std::vector<std::vector<char>> raw_board(info.rows, std::vector<char>(info.cols, ' '));
+    std::cout << "[DEBUG] Parsed map dimensions: rows=" << info.rows << ", cols=" << info.cols << "\n";
+
     info.player_tank_positions.clear();
 
     size_t row = 0;
@@ -167,16 +184,30 @@ GameMapInfo Simulator::loadGameMap(const std::string& filename) {
 void Simulator::loadGameManagers(const std::string& folderPath, bool verbose) {
     gm_handles.clear(); //Clears the vector gmHandles so any previously loaded handles are removed.
 
+    std::cout << "[DEBUG] Entered loadGameManagers with folder: " << folderPath << "\n";
+
     // entry is a directory_entry object that gives you information about each item in the folder.
     for (const auto& entry : fs::directory_iterator(folderPath)) {
-        if (!entry.is_regular_file()) continue;
-        //Skips files that don’t have the .so extension.
-        if (entry.path().extension() != ".so") continue;
+        std::cout << "[DEBUG] Found file in folder: " << entry.path() << "\n";
 
+        if (!entry.is_regular_file()) {
+            std::cout << "[DEBUG] Skipped non-regular file: " << entry.path() << "\n";
+            continue;
+        }
+        //Skips files that don’t have the .so extension.
+        if (entry.path().extension() != ".so") {
+            std::cout << "[DEBUG] Skipped non-.so file: " << entry.path() << "\n";
+            continue;
+        }
 
         std::string soPath = entry.path().string();
+        std::cout << "[DEBUG] Attempting dlopen on: " << soPath << "\n";
+
         //Calls dlopen to load the shared library into memory.
         void* handle = dlopen(soPath.c_str(), RTLD_LAZY);
+
+        std::cout << "[DEBUG] Returned from dlopen for: " << soPath << "\n";
+
         if (!handle) {
             std::cerr << "[Error] Failed to load GameManager .so: " << soPath << "\n";
             std::cerr << dlerror() << "\n";
@@ -191,7 +222,9 @@ void Simulator::loadGameManagers(const std::string& folderPath, bool verbose) {
         //Without storing the handle, we can't safely unload the .so later.
         gm_handles.push_back(handle);
         // REGISTER_GAME_MANAGER macro inside .so runs now
+        std::cout << "[DEBUG] Stored dlopen handle for: " << soPath << "\n";
     }
+    std::cout << "[DEBUG] Finished loadGameManagers()\n";
 }
 
 // --------------------
@@ -212,10 +245,17 @@ void Simulator::loadTwoAlgorithms(
             return nullptr;
         }
 
-        void* handle = dlopen(path.c_str(), RTLD_LAZY);
+        // Extract algorithm name from path (you can tweak this if needed)
+        std::string name = fs::path(path).stem().string(); // removes .so
+        std::cout << "[DEBUG] Creating AlgorithmFactoryEntry for: " << name << "\n";
+        auto& registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
+        registrar.createAlgorithmFactoryEntry(name); // 🔥 REQUIRED
+
+        void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL); // 🔥 REQUIRED FLAGS
         if (!handle) {
             std::cerr << "[Error] Failed to load Algorithm: " << path << "\n";
             std::cerr << dlerror() << "\n";
+            registrar.removeLast(); // 🔄 roll back placeholder
             return nullptr;
         }
 
@@ -262,7 +302,7 @@ void Simulator::loadTwoAlgorithms(
 // --------------------
 // Run a single game
 // --------------------
-GameResult Simulator::runSingleGame(const std::string& gmName,const std::string& gameMapPath, const std::string& alg1, const std::string& alg2,bool verbose) {
+GameResult Simulator::runSingleGame(const std::string &gmName, const GameMapInfo& mapInfo, const std::string& alg1, const std::string& alg2, bool verbose) {   
     // 1. Get the GameManager factory
     auto& gmRegistrar = GameManagerRegistrar::getGameManagerRegistrar();
     auto gmFactory = gmRegistrar.getFactory(gmName);
@@ -275,7 +315,7 @@ GameResult Simulator::runSingleGame(const std::string& gmName,const std::string&
     // 2. Prepare TankAlgorithm factories for each algorithm
     auto& tankRegistrar = AlgorithmRegistrar::getAlgorithmRegistrar();
 
-    auto tankAlgo1Factory = [&tankRegistrar, &alg1](int player_index, int tank_index) {
+    TankAlgorithmFactory tankAlgo1Factory = [&tankRegistrar, &alg1](int player_index, int tank_index) {
         // Find the last registered factory with this name
         for (const auto& entry : tankRegistrar) {
             if (entry.name() == alg1 && entry.hasTankAlgorithmFactory()) {
@@ -285,7 +325,7 @@ GameResult Simulator::runSingleGame(const std::string& gmName,const std::string&
         throw std::runtime_error("TankAlgorithm factory not found: " + alg1);
     };
 
-    auto tankAlgo2Factory = [&tankRegistrar, &alg2](int player_index, int tank_index) {
+    TankAlgorithmFactory tankAlgo2Factory = [&tankRegistrar, &alg2](int player_index, int tank_index) {
         for (const auto& entry : tankRegistrar) {
             if (entry.name() == alg2 && entry.hasTankAlgorithmFactory()) {
                 return entry.createTankAlgorithm(player_index, tank_index);
@@ -304,7 +344,9 @@ GameResult Simulator::runSingleGame(const std::string& gmName,const std::string&
     }
 
     // 4. Load map from file
-    auto mapInfo = loadGameMap(gameMapPath);
+    //auto mapInfo = loadGameMap(gameMapPath);
+    //const GameMapInfo& mapInfo = map_info_ref;
+
 
     // Use AlgorithmRegistrar instead of PlayerRegistrar
     auto& algoRegistrar = AlgorithmRegistrar::getAlgorithmRegistrar();

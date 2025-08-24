@@ -8,7 +8,6 @@ all:
 	@echo "Building Simulator..."
 	$(MAKE) -C Simulator
 
-
 clean:
 	$(MAKE) -C Algorithm clean
 	$(MAKE) -C GameManager clean

@@ -10,7 +10,7 @@ using namespace UserCommon_322719139_211961057;
 
 namespace Algorithm_322719139_211961057 {
 
-OffensiveTankAlgorithm::OffensiveTankAlgorithm(int player_index, int tank_index)
+TankAlgorithm_322719139_211961057_A::TankAlgorithm_322719139_211961057_A(int player_index, int tank_index)
     : player_index_(player_index),
       tank_index_(tank_index),
       init_shells_num_(0),
@@ -37,7 +37,7 @@ OffensiveTankAlgorithm::OffensiveTankAlgorithm(int player_index, int tank_index)
       action_counter_(0) {
 }
 
-OffensiveTankAlgorithm::OffensiveTankAlgorithm(const OffensiveTankAlgorithm& other)
+TankAlgorithm_322719139_211961057_A::TankAlgorithm_322719139_211961057_A(const TankAlgorithm_322719139_211961057_A& other)
     : TankAlgorithm(other),
       player_index_(other.player_index_),
       tank_index_(other.tank_index_),
@@ -68,7 +68,7 @@ OffensiveTankAlgorithm::OffensiveTankAlgorithm(const OffensiveTankAlgorithm& oth
       last_offensive_info_(other.last_offensive_info_) {
 }
 
-void OffensiveTankAlgorithm::updateBattleInfo(BattleInfo& info) {
+void TankAlgorithm_322719139_211961057_A::updateBattleInfo(BattleInfo& info) {
     need_battle_info_ = false;
     last_info_step_ = current_step_;
     
@@ -93,7 +93,7 @@ void OffensiveTankAlgorithm::updateBattleInfo(BattleInfo& info) {
     updateSpecificBattleInfo(info);
 }
 
-ActionRequest OffensiveTankAlgorithm::getAction() {
+ActionRequest TankAlgorithm_322719139_211961057_A::getAction() {
     current_step_++;
     steps_until_next_info++;
 
@@ -117,7 +117,7 @@ ActionRequest OffensiveTankAlgorithm::getAction() {
     return action;
 }
 
-void OffensiveTankAlgorithm::updateSpecificBattleInfo(BattleInfo& info) {
+void TankAlgorithm_322719139_211961057_A::updateSpecificBattleInfo(BattleInfo& info) {
     std::cout << "\n---------- updateSpecificBattleInfo(BattleInfo& info) called ----------\n";
     
     std::cout << "[DEBUG] typeid(info).name() = " << typeid(info).name() << "\n";
@@ -178,7 +178,7 @@ void OffensiveTankAlgorithm::updateSpecificBattleInfo(BattleInfo& info) {
     std::cout << "[DEBUG] Finished updateSpecificBattleInfo.\n\n";
 }
 
-Direction OffensiveTankAlgorithm::directionAfterRotationAction(ActionRequest action) {
+Direction TankAlgorithm_322719139_211961057_A::directionAfterRotationAction(ActionRequest action) {
 
     switch (action) {
         case ActionRequest::RotateLeft45:
@@ -200,7 +200,7 @@ Direction OffensiveTankAlgorithm::directionAfterRotationAction(ActionRequest act
     return current_direction_;
 }
 
-bool OffensiveTankAlgorithm::shouldRequestBattleInfo() const {
+bool TankAlgorithm_322719139_211961057_A::shouldRequestBattleInfo() const {
     if (need_battle_info_) {
         return true;
     }
@@ -217,7 +217,7 @@ bool OffensiveTankAlgorithm::shouldRequestBattleInfo() const {
     return false;
 }
 
-ActionRequest OffensiveTankAlgorithm::rotateToDirection(Direction target_direction) const {
+ActionRequest TankAlgorithm_322719139_211961057_A::rotateToDirection(Direction target_direction) const {
     if (target_direction == current_direction_) {
         return ActionRequest::DoNothing;
     }
@@ -239,7 +239,7 @@ ActionRequest OffensiveTankAlgorithm::rotateToDirection(Direction target_directi
     }
 }
 
-ActionRequest OffensiveTankAlgorithm::moveTowardsPosition(size_t target_x, size_t target_y) const {
+ActionRequest TankAlgorithm_322719139_211961057_A::moveTowardsPosition(size_t target_x, size_t target_y) const {
     std::cout<<target_x<<"," <<target_y<<std::endl;
     Direction target_direction = getDirectionToPosition(target_x, target_y);
 
@@ -250,7 +250,7 @@ ActionRequest OffensiveTankAlgorithm::moveTowardsPosition(size_t target_x, size_
     return ActionRequest::MoveForward;
 }
 
-bool OffensiveTankAlgorithm::isPositionInFront(size_t x, size_t y) const {
+bool TankAlgorithm_322719139_211961057_A::isPositionInFront(size_t x, size_t y) const {
     int dx = static_cast<int>(x) - static_cast<int>(current_x_);
     int dy = static_cast<int>(y) - static_cast<int>(current_y_);
 
@@ -265,7 +265,7 @@ bool OffensiveTankAlgorithm::isPositionInFront(size_t x, size_t y) const {
            (movement.second != 0 && dy * movement.second > 0 && (movement.first == 0 || dx * movement.first > 0));
 }
 
-Direction OffensiveTankAlgorithm::getDirectionToPosition(size_t x, size_t y) const {
+Direction TankAlgorithm_322719139_211961057_A::getDirectionToPosition(size_t x, size_t y) const {
     int dx = static_cast<int>(x) - static_cast<int>(current_x_);
     int dy = static_cast<int>(y) - static_cast<int>(current_y_);
 
@@ -277,13 +277,13 @@ Direction OffensiveTankAlgorithm::getDirectionToPosition(size_t x, size_t y) con
     return DirectionUtil::getDirectionFromDelta(dx, dy);
 }
 
-bool OffensiveTankAlgorithm::canShoot() const {
+bool TankAlgorithm_322719139_211961057_A::canShoot() const {
     std::cout <<"CAN SHOOT" << std::endl;
     std::cout << "remaining_shells_" << remaining_shells_ << " cooldown_timer_" <<  cooldown_timer_ << std::endl;
     return remaining_shells_ > 0 && cooldown_timer_ == 0;
 }
 
-bool OffensiveTankAlgorithm::isObstacle(int x, int y) const {
+bool TankAlgorithm_322719139_211961057_A::isObstacle(int x, int y) const {
     if (board_.empty() || board_[0].empty()) {
         return true;
     }
@@ -300,7 +300,7 @@ bool OffensiveTankAlgorithm::isObstacle(int x, int y) const {
             object == std::to_string(3 - player_index_)[0]);
 }
 
-std::vector<std::pair<int, int>> OffensiveTankAlgorithm::findPath(int target_x, int target_y) const {
+std::vector<std::pair<int, int>> TankAlgorithm_322719139_211961057_A::findPath(int target_x, int target_y) const {
     if (board_.empty() || board_[0].empty()) {
         return {};
     }
@@ -365,14 +365,14 @@ std::vector<std::pair<int, int>> OffensiveTankAlgorithm::findPath(int target_x, 
     return {};
 }
 
-ActionRequest OffensiveTankAlgorithm::takeAction() {
+ActionRequest TankAlgorithm_322719139_211961057_A::takeAction() {
     if (shouldRequestBattleInfo()) {
         return ActionRequest::GetBattleInfo;
     }
     return ActionRequest::DoNothing;
 }
 
-ActionRequest OffensiveTankAlgorithm::determineOffensiveAction() {
+ActionRequest TankAlgorithm_322719139_211961057_A::determineOffensiveAction() {
     std::cout << "---------- determineOffensiveAction called ----------\n";
     MissionType mission = last_offensive_info_.getMissionType();
     const auto& path = last_offensive_info_.getPath();
@@ -446,7 +446,7 @@ ActionRequest OffensiveTankAlgorithm::determineOffensiveAction() {
     return ActionRequest::DoNothing;
 }
 
-ActionRequest OffensiveTankAlgorithm::handleWallInPath(size_t wall_x, size_t wall_y) {
+ActionRequest TankAlgorithm_322719139_211961057_A::handleWallInPath(size_t wall_x, size_t wall_y) {
     Direction wall_direction = getDirectionToPosition(wall_x, wall_y);
     if (current_direction_ == wall_direction && canShoot()) {
         return ActionRequest::Shoot;
@@ -463,7 +463,7 @@ ActionRequest OffensiveTankAlgorithm::handleWallInPath(size_t wall_x, size_t wal
     return ActionRequest::DoNothing; 
 }
 
-ActionRequest OffensiveTankAlgorithm::attackTarget() {
+ActionRequest TankAlgorithm_322719139_211961057_A::attackTarget() {
     Direction target_direction = getDirectionToPosition(target_x_, target_y_);
     if (target_direction != current_direction_) {
         ActionRequest rotation_needed = rotateToDirection(target_direction);
@@ -480,7 +480,7 @@ ActionRequest OffensiveTankAlgorithm::attackTarget() {
     return followPathToTarget();
 }
 
-ActionRequest OffensiveTankAlgorithm::followPathToTarget() {
+ActionRequest TankAlgorithm_322719139_211961057_A::followPathToTarget() {
     if (path_to_target_.empty()) {
         return ActionRequest::DoNothing;
     }
@@ -503,11 +503,11 @@ ActionRequest OffensiveTankAlgorithm::followPathToTarget() {
     return possible_rotation;
 }
 
-void OffensiveTankAlgorithm::resetPathIndex() {
+void TankAlgorithm_322719139_211961057_A::resetPathIndex() {
     path_index_ = 0;
 }
 
-bool OffensiveTankAlgorithm::isRotationAction(ActionRequest action) {
+bool TankAlgorithm_322719139_211961057_A::isRotationAction(ActionRequest action) {
     return action == ActionRequest::RotateLeft45 ||
            action == ActionRequest::RotateRight45 ||
            action == ActionRequest::RotateLeft90 ||
@@ -515,7 +515,11 @@ bool OffensiveTankAlgorithm::isRotationAction(ActionRequest action) {
 }
 
 
-REGISTER_TANK_ALGORITHM(OffensiveTankAlgorithm); //it looks like its wrong, according to pdf, check and if so, correct one below:
+//REGISTER_TANK_ALGORITHM(TankAlgorithm_322719139_211961057_A); //it looks like its wrong, according to pdf, check and if so, correct one below:
 //REGISTER_TANK_ALGORITHM(OffensiveTankAlgorithm_322719139_211961057);
 
 } // namespace Algorithm_322719139_211961057
+
+// Bring the class name into global scope for the macro
+using Algorithm_322719139_211961057::TankAlgorithm_322719139_211961057_A;
+REGISTER_TANK_ALGORITHM(TankAlgorithm_322719139_211961057_A);

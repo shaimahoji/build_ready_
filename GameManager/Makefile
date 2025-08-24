@@ -6,10 +6,18 @@ NAME = GameManager_$(ID1)_$(ID2)
 CXX = g++
 CXXFLAGS = -Wall -std=c++17 -fPIC -I../UserCommon -I../common -I.. #must delete last one and figure out what to do with the visualizer
 
-SRC = $(wildcard *.cpp ../UserCommon/*.cpp)
+#SRC = $(wildcard *.cpp ../UserCommon/*.cpp)
+SRC = \
+  GameManager.cpp \
+  ../Simulator/GameManagerRegistration.cpp \
+  ../Simulator/GameManagerRegistrar.cpp \
+  ../UserCommon/GameSatelliteView.cpp \
+  ../UserCommon/Direction.cpp \
+  ../UserCommon/OffensiveBattleInfo.cpp
+
 OBJ = $(SRC:.cpp=.o)
 
-TARGET = lib$(NAME).so
+TARGET = $(NAME).so
 
 all: $(TARGET)
 
