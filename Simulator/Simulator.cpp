@@ -6,7 +6,6 @@
 #include <ctime>
 #include <dlfcn.h>
 
-
 #include <thread>
 #include <mutex>
 #include <unordered_map>
@@ -15,6 +14,8 @@
 #include "GameManagerRegistrar.h"
 #include "AlgorithmRegistrar.h"
 #include "ThreadPool.h"
+#include "DynamicLoader.h"
+#include "GameManagerLoader.h"
 
 namespace fs = std::filesystem;
 
@@ -132,6 +133,7 @@ void Simulator::runComparative(
     );
 }
 
+/*
 GameMapInfo Simulator::loadGameMap(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -177,6 +179,72 @@ GameMapInfo Simulator::loadGameMap(const std::string& filename) {
 
     return info;
 }
+*/
+
+GameMapInfo Simulator::loadGameMap(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open map file: " + filename);
+    }
+
+    GameMapInfo info;
+    std::string line;
+
+    // Line 1: Map name
+    std::getline(file, info.name);
+    std::cout << "[DEBUG] Map name: " << info.name << "\n";
+
+    // Lines 2–5: Config
+    std::getline(file, line); parseHeaderLine(line, "MaxSteps", info.max_steps);
+    std::getline(file, line); parseHeaderLine(line, "NumShells", info.num_shells);
+    std::getline(file, line); parseHeaderLine(line, "Rows", info.rows);
+    std::getline(file, line); parseHeaderLine(line, "Cols", info.cols);
+
+    std::cout << "[DEBUG] Parsed config: MaxSteps=" << info.max_steps
+              << ", NumShells=" << info.num_shells
+              << ", Rows=" << info.rows
+              << ", Cols=" << info.cols << "\n";
+
+    if (info.rows == 0 || info.cols == 0) {
+        std::cerr << "[ERROR] Invalid board dimensions (0 rows or cols)\n";
+    }
+
+    std::vector<std::vector<char>> raw_board(info.rows, std::vector<char>(info.cols, ' '));
+
+    info.player_tank_positions.clear();
+
+    size_t row = 0;
+    while (std::getline(file, line) && row < info.rows) {
+        std::cout << "[DEBUG] Reading row " << row << ": " << line << "\n";
+        for (size_t col = 0; col < std::min(line.length(), info.cols); ++col) {
+            char c = line[col];
+            raw_board[row][col] = c;
+
+            if (isdigit(c)) {
+                int player = c - '0';
+                info.player_tank_positions[player].emplace_back(col, row);
+                std::cout << "[DEBUG] Found tank for player " << player
+                          << " at (" << col << "," << row << ")\n";
+
+                if (player == 1) { info.x1 = col; info.y1 = row; }
+                if (player == 2) { info.x2 = col; info.y2 = row; }
+            }
+        }
+        row++;
+    }
+
+    std::cout << "[DEBUG] Parsed " << row << " board rows\n";
+    std::cout << "[DEBUG] Final player 1 tank pos: (" << info.x1 << "," << info.y1 << ")\n";
+    std::cout << "[DEBUG] Final player 2 tank pos: (" << info.x2 << "," << info.y2 << ")\n";
+
+    info.view = std::make_unique<UserCommon_322719139_211961057::GameSatelliteView>(
+        raw_board, info.x1, info.y1, 1
+    );
+
+    return info;
+}
+
+
 
 // --------------------
 // Load all GameManagers from folder
@@ -516,9 +584,235 @@ std::string Simulator::generateTimestamp() const {
     return buf;
 }
 
+
+/******************** NEW IMPLEMENTATION *********************************/
+
+//-------------------------------------------------
+// Competitive Run Mode
+//-------------------------------------------------
 void Simulator::runCompetitive(
     const std::string& algorithms_folder,
     const std::string& game_maps_folder,
     const std::string& game_manager_so,
     size_t num_threads,
-    bool verbose){}
+    bool verbose)
+{
+    // 1. Load algorithms
+
+    loadAlgorithms(algorithms_folder, verbose);
+    size_t N = algo_handles.size();
+    if (N < 2) {
+        std::cerr << "Error: Need at least 2 algorithms for competition mode.\n";
+        return;
+    }
+
+    // 2. Load maps
+    auto maps = loadGameMaps(game_maps_folder); // your existing loader
+    size_t K = maps.size();
+    if (K == 0) {
+        std::cerr << "Error: No maps found in folder " << game_maps_folder << "\n";
+        return;
+    }
+
+    // 3. Load GameManager
+    GameManagerLoader gm_loader;
+    std::string gm_name = std::filesystem::path(game_manager_so).filename().string();
+
+    if (!gm_loader.loadGameManagerLibrary(game_manager_so, gm_name, std::cerr)) {
+        std::cerr << "Error: Could not load or register GameManager: " << gm_name << "\n";
+        return;
+    }
+
+    auto& gm_registrar = GameManagerRegistrar::getGameManagerRegistrar();
+    if (gm_registrar.count() == 0) {
+        std::cerr << "Error: No GameManager registered after loading " << gm_name << "\n";
+        return;
+    }
+
+    auto gm_factory = gm_registrar.getFactory(gm_name);
+    if (!gm_factory) {
+        std::cerr << "Error: No factory found for GameManager " << gm_name << "\n";
+        return;
+    }
+
+    // 4. Scoreboard
+    std::map<std::string, int> scores;
+    auto& algo_registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
+    if (algo_registrar.count() == 0) {
+        throw std::runtime_error("[Simulator] No tank algorithms registered.");
+    }
+
+    //auto& algo_registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
+    for (const auto& entry : algo_registrar) {
+        scores[entry.name()] = 0;
+    }
+
+
+    // Mutex for thread-safe scoring
+    std::mutex score_mutex;
+
+    // 5. Thread pool 
+    std::vector<std::thread> workers;
+
+    for (size_t k = 0; k < K; ++k) {
+        auto& map_info = maps[k];
+
+        for (size_t i = 0; i < N; ++i) {
+            size_t opponent = (i + 1 + (k % (N - 1))) % N;
+
+            // Special case: N even and kth == N/2 - 1 → skip duplicate matches
+            if (N % 2 == 0 && k == N/2 - 1 && opponent == (i + 1) % N) {
+                continue;
+            }
+
+            workers.emplace_back([&, i, opponent, k, gm_factory]() {
+                //auto& alg1 = algo_handles[i];
+                //auto& alg2 = algo_handles[opponent];
+                auto& algo_registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
+                const auto& algo_list = std::vector(algo_registrar.begin(), algo_registrar.end());
+
+                const auto& entry1 = algo_list[i];
+                const auto& entry2 = algo_list[opponent];
+
+                //GameResult result = gm->run(
+                auto gm_instance = gm_factory(verbose);
+
+                GameResult result = gm_instance->run(
+                    map_info.cols, map_info.rows,
+                    *map_info.view, map_info.name,
+                    map_info.max_steps, map_info.num_shells,
+                    *entry1.createPlayer(0, map_info.x1, map_info.y1, map_info.max_steps, map_info.num_shells), entry1.name(),
+                    *entry2.createPlayer(1, map_info.x2, map_info.y2, map_info.max_steps, map_info.num_shells), entry2.name(),
+                    [=](int player, int tank) { return entry1.createTankAlgorithm(player, tank); },
+                    [=](int player, int tank) { return entry2.createTankAlgorithm(player, tank); }
+                );
+
+                // Update scores safely
+                std::lock_guard<std::mutex> lock(score_mutex);
+                if (result.winner == 1) {
+                    scores[entry1.name()] += 3;
+                } else if (result.winner == 2) {
+                    scores[entry2.name()] += 3;
+                } else {
+                    scores[entry1.name()] += 1;
+                    scores[entry2.name()] += 1;
+                }
+            });
+
+            if (workers.size() >= num_threads) {
+                for (auto& w : workers) w.join();
+                workers.clear();
+            }
+        }
+    }
+
+    // Join any leftover workers
+    for (auto& w : workers) w.join();
+    workers.clear();
+
+    // 6. Sort results by score
+    std::vector<std::pair<std::string, int>> ranking(scores.begin(), scores.end());
+    std::sort(ranking.begin(), ranking.end(),
+              [](auto& a, auto& b) { return a.second > b.second; });
+
+    // 7. Prepare filename
+    auto now = std::chrono::system_clock::now();
+    auto t = std::chrono::system_clock::to_time_t(now);
+    std::stringstream filename;
+    filename << algorithms_folder << "/competition_" << t << ".txt";
+
+    std::ofstream out(filename.str());
+    if (!out) {
+        std::cerr << "Error: Could not create file " << filename.str()
+                  << ". Printing results to screen.\n";
+    }
+
+    std::ostream& os = out ? out : std::cout;
+
+    // 8. Write results
+    os << "game_maps_folder=" << game_maps_folder << "\n";
+    os << "game_manager=" << game_manager_so << "\n\n";
+
+    for (auto& [name, score] : ranking) {
+        os << name << " " << score << "\n";
+    }
+
+    if (out) {
+        std::cout << "Competition results saved to " << filename.str() << "\n";
+    }
+}
+
+
+std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_folder) {
+    namespace fs = std::filesystem;
+
+    std::vector<GameMapInfo> maps;
+
+    try {
+        if (!fs::exists(game_maps_folder) || !fs::is_directory(game_maps_folder)) {
+            throw std::runtime_error("Invalid maps folder: " + game_maps_folder);
+        }
+
+        for (const auto& entry : fs::directory_iterator(game_maps_folder)) {
+            if (entry.is_regular_file()) {
+                std::string filename = entry.path().string();
+
+                try {
+                    GameMapInfo map_info = loadGameMap(filename);
+                    maps.push_back(std::move(map_info));
+                } catch (const std::exception& e) {
+                    std::cerr << "Skipping map file " << filename
+                              << " due to error: " << e.what() << "\n";
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading maps from folder " << game_maps_folder
+                  << ": " << e.what() << "\n";
+    }
+
+    return maps;
+}
+
+
+void Simulator::loadAlgorithms(const std::string& algorithms_folder, bool verbose) {
+    // Clear previous handles
+    algo_handles.clear();
+
+    namespace fs = std::filesystem;
+    DynamicLoader dynamic_loader;
+
+    if (!fs::exists(algorithms_folder) || !fs::is_directory(algorithms_folder)) {
+        throw std::runtime_error("[Simulator] Invalid algorithms folder: " + algorithms_folder);
+    }
+
+    for (const auto& entry : fs::directory_iterator(algorithms_folder)) {
+        if (!entry.is_regular_file()) continue;
+
+        const std::string path = entry.path().string();
+        const std::string filename = entry.path().filename().string();
+
+        if (path.size() < 3 || path.substr(path.size() - 3) != ".so") {
+            if (verbose)
+                std::cerr << "[Simulator] Skipping non-.so file: " << path << "\n";
+            continue;
+        }
+
+        if (dynamic_loader.loadAlgorithmLibrary(path, filename, std::cerr)) {
+            algo_handles.push_back(dlopen(path.c_str(), RTLD_LAZY));  // Only for destructor cleanup
+            if (verbose)
+                std::cout << "[Simulator] Successfully registered algorithm: " << filename << "\n";
+        } else {
+            std::cerr << "[Simulator] Failed to register algorithm: " << filename << "\n";
+        }
+    }
+
+    if (algo_handles.size() < 2) {
+        throw std::runtime_error("[Simulator] Not enough valid algorithms found in folder. Need at least 2.");
+    }
+
+    if (verbose) {
+        std::cout << "[Simulator] Total algorithms registered: "
+                  << AlgorithmRegistrar::getAlgorithmRegistrar().count() << "\n";
+    }
+}

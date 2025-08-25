@@ -34,7 +34,8 @@ public:
     //}
 
     // Register with a generated name (used by REGISTER_GAME_MANAGER)
-    void addGameManagerFactory(GameManagerFactory factory);
+    //void addGameManagerFactory(GameManagerFactory factory);
+    void addGameManagerFactory(GameManagerFactory factory, const std::string& name);
 
     // Lookup a factory by name
     GameManagerFactory getFactory(const std::string& name) const;

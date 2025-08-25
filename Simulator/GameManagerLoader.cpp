@@ -13,7 +13,8 @@ bool GameManagerLoader::loadGameManagerLibrary(const std::string& path, const st
     }
 
     size_t after = registrar.count();
-    if (after != before + 1) {
+    //if (after != before + 1) {
+    if (after <= before) {
         error_stream << "[REGISTRATION ERROR] GameManager not registered: " << name << std::endl;
         dlclose(handle);
         return false;

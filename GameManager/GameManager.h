@@ -10,8 +10,7 @@
 #include "../UserCommon/GameSatelliteView.h" // includes SatelliteView.h
 #include "../UserCommon/Direction.h" // defines Direction and DirectionUtil
 
-
-
+#include "../UserCommon/json.hpp"
 
 // -------- Common headers (in correct dependency order) --------
 #include "../common/ActionRequest.h"       // defines ActionRequest for TankAlgorithm
@@ -29,13 +28,12 @@ namespace GameManager_322719139_211961057 {
 
 using Direction = UserCommon_322719139_211961057::Direction;
 
-
 // GameManager_refactored
-class GameManager_322719139_211961057_A : public AbstractGameManager {
+class MyGameManager_322719139_211961057 : public AbstractGameManager {
 public:
     // Properly using the factory function types
-    explicit GameManager_322719139_211961057_A(bool verbose);
-    ~GameManager_322719139_211961057_A();
+    explicit MyGameManager_322719139_211961057(bool verbose);
+    ~MyGameManager_322719139_211961057();
 
     // Previously called run();
     void executeGameLoop();
@@ -202,14 +200,13 @@ private:
     void processGameStep();
     bool isGameOver();
     bool isValidCellChar(char c) const;
-    bool CanMoveBackward(GameManager_322719139_211961057_A::TankData *tank_data);
-    void updateTankCounters(GameManager_322719139_211961057_A::TankData *tank_data);
+    bool CanMoveBackward(MyGameManager_322719139_211961057::TankData *tank_data);
+    void updateTankCounters(MyGameManager_322719139_211961057::TankData *tank_data);
     void addShell(size_t x,size_t y,Direction dir);
     void moveShells();
     bool checkShellCollision(size_t shell_idx, std::vector<size_t>& shells_to_remove);
     void handleBattleInfoRequest(int player_idx, int tank_idx);
     void initializeBoard();
-    static std::string toString2(Direction dir);
 
     /* Helper methods for reading board */
     void parseHeaderLine(const std::string& line, const std::string& key, size_t& out);
@@ -252,5 +249,6 @@ private:
     TankAlgorithmFactory player2_tank_algo_factory);
 };
 
+std::string toString2(Direction dir);
 
 } // namespace

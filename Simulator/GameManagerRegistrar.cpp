@@ -38,6 +38,21 @@ std::size_t GameManagerRegistrar::count() const {
     return factories_->size();
 }
 
+void GameManagerRegistrar::addGameManagerFactory(GameManagerFactory factory, const std::string& name) {
+    if (!factories_) {
+        factories_ = std::make_unique<std::unordered_map<std::string, GameManagerFactory>>();
+    }
+
+    std::cout << "[DEBUG] Registering GameManager with name: " << name << std::endl;
+    factories_->emplace(name, std::move(factory));
+}
+
+
+
+
+
+
+/*
 void GameManagerRegistrar::addGameManagerFactory(GameManagerFactory factory) {
     std::cout << "[DEBUG] Entered addGameManagerFactory\n";
     static int counter = 0;
@@ -57,9 +72,10 @@ void GameManagerRegistrar::addGameManagerFactory(GameManagerFactory factory) {
         std::cout << "[DEBUG] factories_ is valid, about to emplace\n";
         //factories_.emplace(name, std::move(factory));
         auto& map = *factories_;
-map.emplace(name, std::move(factory));
+        map.emplace(name, std::move(factory));
         std::cout << "[DEBUG] After factories_.emplace\n";
     }
 
     std::cout << "[DEBUG] After factories_.emplace\n";
 }
+*/

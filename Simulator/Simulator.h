@@ -58,7 +58,7 @@ public:
 
     void loadGameManagers(const std::string& folder_path, bool verbose);
 
-    void loadAlgorithms(const std::string& algorithms_folder, bool verbose);
+    //void loadAlgorithms(const std::string& algorithms_folder, bool verbose);
     void loadTwoAlgorithms(const std::string& algo1_path, const std::string& algo2_path, bool verbose);
 
     GameResult runSingleGame(const std::string &gmName, const GameMapInfo& mapInfo, const std::string& alg1, const std::string& alg2, bool verbose);
@@ -78,9 +78,19 @@ public:
 
     std::string generateTimestamp() const;
 
-    void runCompetitive(const std::string &algorithms_folder, const std::string &game_maps_folder, const std::string &game_manager_so, size_t num_threads, bool verbose);
+    //void runCompetitive(const std::string &algorithms_folder, const std::string &game_maps_folder, const std::string &game_manager_so, size_t num_threads, bool verbose);
+    void runCompetitive(
+        const std::string& algorithms_folder,
+        const std::string& game_maps_folder,
+        const std::string& game_manager_so,
+        size_t num_threads,
+        bool verbose);
 
+        
 
     std::vector<GameMapInfo> loadGameMaps(const std::string& game_maps_folder);
+
+    void loadAlgorithms(const std::string& algorithms_folder, bool verbose);
+
 };
 
