@@ -13,21 +13,11 @@
 
 using namespace UserCommon_322719139_211961057;
 
-// Static initializer object that prints during global/static init
-struct _StartupDebugPrinter {
-    _StartupDebugPrinter() {
-        std::cout << "[DEBUG] very top of GameManager.cpp\n";
-    }
-};
-
-// This runs before main, even before your GameManager constructor
-static _StartupDebugPrinter _startup_debug_printer;
-// --------------------
-
 namespace GameManager_322719139_211961057 {
 
 MyGameManager_322719139_211961057::MyGameManager_322719139_211961057(bool verbose)
-    : max_steps_(5000), // The following are initial values, they're updated in readBoard
+    : verbose_(verbose),
+      max_steps_(5000), // The following are initial values, they're updated in readBoard
       num_shells_(16),
       overall_shells(0),
       rows_(0),
@@ -69,9 +59,12 @@ void MyGameManager_322719139_211961057::readBoardFromSatellite(
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory
 ) {
+    std::cout << "[DEBUG] Entered readBoardFromSatellite()\n";
+
     rows_ = map_height;
     cols_ = map_width;
     board_.resize(rows_, std::vector<char>(cols_, ' '));
+    std::cout << "[DEBUG] board_ resized to " << rows_ << "x" << cols_ << "\n";
 
     std::map<int, std::vector<std::pair<size_t, size_t>>> player_tank_positions;
 
@@ -80,21 +73,32 @@ void MyGameManager_322719139_211961057::readBoardFromSatellite(
 
     for (size_t y = 0; y < rows_; ++y) {
         for (size_t x = 0; x < cols_; ++x) {
+            std::cout << "[DEBUG] Reading cell (" << x << "," << y << ")\n";
+
             char c = map.getObjectAt(x, y);
+            std::cout << "[DEBUG] map.getObjectAt(" << x << "," << y << ") = '" << c << "'\n";
 
             // Skip out-of-bounds marker
             if (c == '&') {
+                std::cout << "[DEBUG] Skipping '&' at (" << x << "," << y << ")\n";
                 continue;
             }
 
             // Do not process requesting tank marker (%)
             // It only appears when the requesting tank asks for its view — not in global SatelliteView
             if (c == '%') {
+                std::cout << "[DEBUG] Skipping '%' at (" << x << "," << y << ")\n";
                 continue;
             }
 
             processBoardChar(c, x, y, player_tank_positions, warnings, has_warnings);
         }
+    }
+
+    std::cout << "[DEBUG] Finished parsing map grid.\n";
+    std::cout << "[DEBUG] Tank positions collected:\n";
+    for (const auto& [player, tanks] : player_tank_positions) {
+        std::cout << "  Player " << player << " tanks = " << tanks.size() << "\n";
     }
 
     if (has_warnings && !warnings.empty()) {
@@ -103,8 +107,14 @@ void MyGameManager_322719139_211961057::readBoardFromSatellite(
 
     tank_counts_[0] = player_tank_positions[1].size();  // Player 1 is key 1
     tank_counts_[1] = player_tank_positions[2].size();  // Player 2 is key 2
+    
+    std::cout << "[DEBUG] tank_counts: P1 = " << tank_counts_[0]
+              << ", P2 = " << tank_counts_[1] << "\n";
+
+    std::cout << "[DEBUG] Calling initializeTanks()\n";
 
     initializeTanks(player_tank_positions, player1_tank_algo_factory, player2_tank_algo_factory);
+    std::cout << "[DEBUG] Exiting readBoardFromSatellite()\n";
 }
 
 
@@ -164,6 +174,12 @@ void MyGameManager_322719139_211961057::initializeTanks(
             tank_algorithm = player1_tank_algo_factory(player_idx, tank_idx);
         } else { // player_idx == 2
             tank_algorithm = player2_tank_algo_factory(player_idx, tank_idx);
+        }
+
+        if (!tank_algorithm) {
+            std::cerr << "[FATAL] TankAlgorithm factory returned nullptr for player " << player_idx
+                    << ", tank " << tank_idx << "\n";
+            std::exit(1); // Or throw std::runtime_error
         }
 
         // Create and add the tank
@@ -250,38 +266,39 @@ GameResult MyGameManager_322719139_211961057::run(
     TankAlgorithmFactory player2_tank_algo_factory)
 {
 
-    if (output_file_.empty()) {
-        std::string sanitized_map = std::filesystem::path(map_name).stem().string();
-        std::string sanitized_name1 = std::filesystem::path(name1).stem().string();
-        std::string sanitized_name2 = std::filesystem::path(name2).stem().string();
+    if (verbose_ && output_file_.empty()) {
+        std::string sanitized_map = map_name.empty() ? "unknown_map" : std::filesystem::path(map_name).stem().string();
+        std::string sanitized_name1 = name1.empty() ? "player1" : std::filesystem::path(name1).stem().string();
+        std::string sanitized_name2 = name2.empty() ? "player2" : std::filesystem::path(name2).stem().string();
 
         std::string output_filename = "output_" + sanitized_map + "_" + sanitized_name1 + "_vs_" + sanitized_name2 + ".txt";
         writeOutput(output_filename);
+        std::cout << "[DEBUG] GameManager writing output file: " << output_filename << std::endl;
     }
+
 
     // Step 1: Store metadata
     max_steps_ = max_steps;
     num_shells_ = num_shells;
 
     // Step 2: Initialize players
-    //floating attempt
-    //players_.resize(2);
-    //players_[0] = &player1;
-    //players_[1] = &player2;
-
+    std::cout << "[DEBUG] About to set players_" << std::endl;
     this->players_.resize(2);
     this->players_[0] = static_cast<void*>(&player1);
     this->players_[1] = static_cast<void*>(&player2);
 
-
+    std::cout << "[DEBUG] About to readBoardFromSatellite()" << std::endl;
     // Step 3: Read board from SatelliteView + Initialize tanks by calling initializePlayersAndTanks
     readBoardFromSatellite(map_width, map_height, map, player1_tank_algo_factory, player2_tank_algo_factory);    
     std::cout << "[DEBUG] Finished reading board\n";
 
     // Step 4: Update overlays and run game loop
-    updateBoard(); //??
+    // Refreshes board_ with all tanks, walls, shells, etc.
+    // Needed before loop for correct GameState, SatelliteView, and output. (so don't delete it)
+    updateBoard();
     std::cout << "[DEBUG] Finished updateBoard\n";
 
+    std::cout << "[DEBUG] About to executeGameLoop()" << std::endl;
     executeGameLoop();
     std::cout << "[DEBUG] Finished game loop\n";
 
@@ -333,6 +350,11 @@ GameResult MyGameManager_322719139_211961057::run(
 
     result.remaining_tanks = {alive_p1, alive_p2};
 
+    std::cout << "[DEBUG] board_ size before snapshot: " << board_.size() << "\n";
+    if (!board_.empty()) {
+        std::cout << "[DEBUG] board_[0] size: " << board_[0].size() << "\n";
+    }
+
     result.gameState = std::make_unique<GameSatelliteView>(board_, 0, 0, 0);
 
     return result;
@@ -340,40 +362,42 @@ GameResult MyGameManager_322719139_211961057::run(
 
 
 void MyGameManager_322719139_211961057::executeGameLoop() {
-    // Open output files
-    output_stream_.open(output_file_);
-    game_log_stream_.open(game_log_file_);
-    visualization_stream_.open(visualization_file_);
+    // Open output files only if verbose is enabled and filenames were set
+    if (verbose_ && !output_file_.empty()) {
+        output_stream_.open(output_file_);
+        game_log_stream_.open(game_log_file_);
+        visualization_stream_.open(visualization_file_);
 
-    output_ok_ = output_stream_.is_open();
-    if (!output_ok_ ) {
-        std::cerr << "Error: Could not open output file " << output_file_ << " — results will be printed to stdout.\n";
+        output_ok_ = output_stream_.is_open();
+        if (!output_ok_) {
+            std::cerr << "Error: Could not open output file " << output_file_
+                      << " — results will be printed to stdout.\n";
+        }
+    } else {
+        output_ok_ = false;
     }
-
-    // Redirect to std::cout when file is unavailable.
-    //if (output_ok_) output_stream_ << result;
-    //else std::cout << result;
-
 
     initializeBoard();
     updateBoard();
-    
+
     // Main game loop
     while (!isGameOver() && current_step_ < max_steps_) {
         std::cout << "\n Main game loop entered.\n";
         processGameStep();
         updateShellsStepCount();
-        logToFile();
+        logToFile();  // now guarded inside the method
         current_step_++;
         std::cout << "\nStep " << current_step_ << ":\n";
     }
-    
-    // Log final result
-    logFinalResult();
-    
-    // Close output file
-    output_stream_.close();
+
+    logFinalResult();  // also already safe
+
+    // Close output stream if it was opened
+    if (output_stream_.is_open()) {
+        output_stream_.close();
+    }
 }
+
 
 void MyGameManager_322719139_211961057::updateShellsStepCount() {
     if (overall_shells == 0) {
@@ -434,18 +458,18 @@ void MyGameManager_322719139_211961057::updateBoard() {
 /*************/
 /* Printing  */
 /*************/
-//void MyGameManager_322719139_211961057::writeOutput(const std::string& filename) {
-//    output_file_ = filename;
-//}
-
 void MyGameManager_322719139_211961057::writeOutput(const std::string& filename) {
     output_file_ = filename;
-    output_stream_.open(output_file_);
+
+    // Use trunc to clear old content if file already exists
+    output_stream_.open(output_file_, std::ios::out | std::ios::trunc);
+
     if (!output_stream_.is_open()) {
         std::cerr << "[GameManager] Warning: could not open " 
                   << output_file_ << " for writing. Falling back to stdout.\n";
         output_ok_ = false;
     } else {
+        std::cout << "[DEBUG] Output file opened: " << output_file_ << "\n";
         output_ok_ = true;
     }
 }
@@ -587,24 +611,38 @@ void MyGameManager_322719139_211961057::displayBoard() const {
 }
 
 void MyGameManager_322719139_211961057::logToFile() {
+    if (!verbose_) return;
+
     std::ostream& out = (output_ok_ && output_stream_.is_open()) ? output_stream_ : std::cout;
+
+    if (ordered_actions.size() != tanks_.size()) {
+        std::cerr << "[ERROR] logToFile: ordered_actions.size() = " 
+                  << ordered_actions.size()
+                  << ", tanks_.size() = " << tanks_.size() << "\n";
+        return;
+    }
 
     for (size_t i = 0; i < ordered_actions.size(); ++i) {
         const auto& [action_str, is_valid] = ordered_actions[i];
         const auto& tank = tanks_[i];
 
-        if (tank.data.is_alive) {
-            out << action_str;
-            if (!is_valid) out << " (ignored)";
-        } else {
-            out << action_str << " (killed)";
+        out << action_str;
+
+        if (!tank.data.is_alive) {
+            out << " (killed)";
+        } else if (!is_valid) {
+            out << " (ignored)";
         }
 
-        if (i + 1 < ordered_actions.size()) out << ", "; //??? < or !=
+        if (i + 1 < ordered_actions.size()) {
+            out << ", ";
+        }
     }
 
     out << '\n';
 }
+
+
 
 /*************************/
 /* processing Game step */
@@ -699,9 +737,6 @@ void MyGameManager_322719139_211961057::handleBattleInfoRequest(int player_idx, 
           << ", tank " << tank_idx << "\n";
           
     // Update the tank with battle info
-    //floating attempt
-    //players_[player_idx-1]->updateTankWithBattleInfo(
-    //this->players_[player_idx-1]->updateTankWithBattleInfo(
     static_cast<Player*>(this->players_[player_idx - 1])->updateTankWithBattleInfo(
         *tank->algorithm, 
         satellite_view

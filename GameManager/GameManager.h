@@ -58,15 +58,13 @@ public:
     
 
 private:
+    bool verbose_;
+
 
     //attempt
     std::array<size_t, 2> tank_counts_;  // index 0 = player 1, index 1 = player 2
 
     bool output_ok_ = false;
-    
-    // Factories for creating players and tank algorithms
-    //const PlayerFactory& player_factory_;
-    //const TankAlgorithmFactory& tank_algorithm_factory_;
 
     // Game state
     size_t max_steps_;
@@ -91,12 +89,9 @@ private:
 
 
     // HW3: GameManager should NOT own players
-    //std::vector<std::unique_ptr<Player>> players_;
-    //std::vector<Player*> players_;
-    //int dummy_players_[2];  // just for test
     std::vector<void*> players_;
 
-    
+
     // Tank data (authoritative source)
     struct TankData {
         int player_index;

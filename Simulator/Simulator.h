@@ -1,10 +1,12 @@
 #pragma once
+
 #include <string>
 #include <vector>
 #include <functional>
 #include <memory>
 #include <map>
 #include <mutex>
+#include <set>
 
 #include "../common/BattleInfo.h"
 #include "../common/ActionRequest.h"
@@ -14,7 +16,7 @@
 #include "../common/GameResult.h"
 #include "../common/AbstractGameManager.h"
 
-#include "GameSatelliteView.h"
+#include "../UserCommon/GameSatelliteView.h"
 
 struct GameMapInfo {
     std::string name;
@@ -24,7 +26,8 @@ struct GameMapInfo {
     size_t cols;
     size_t x1 = 0, y1 = 0;
     size_t x2 = 0, y2 = 0;
-    std::unique_ptr<UserCommon_322719139_211961057::GameSatelliteView> view;
+    std::unique_ptr<SatelliteView> view;
+    //std::unique_ptr<UserCommon_322719139_211961057::GameSatelliteView> view;
     //std::unique_ptr<GameSatelliteView> view;
     //std::unique_ptr<SatelliteView> view;
     std::map<int, std::vector<std::pair<size_t, size_t>>> player_tank_positions;
@@ -43,6 +46,7 @@ private:
 
     //internal helper
     GameMapInfo loadGameMap(const std::string& filename);
+    std::string generateFilename(const std::string& prefix, const std::string& folder) const;
 
 public:
     ~Simulator();

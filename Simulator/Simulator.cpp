@@ -237,13 +237,10 @@ GameMapInfo Simulator::loadGameMap(const std::string& filename) {
     std::cout << "[DEBUG] Final player 1 tank pos: (" << info.x1 << "," << info.y1 << ")\n";
     std::cout << "[DEBUG] Final player 2 tank pos: (" << info.x2 << "," << info.y2 << ")\n";
 
-    info.view = std::make_unique<UserCommon_322719139_211961057::GameSatelliteView>(
-        raw_board, info.x1, info.y1, 1
-    );
+    info.view = std::make_unique<UserCommon_322719139_211961057::GameSatelliteView>(raw_board);
 
     return info;
 }
-
 
 
 // --------------------
@@ -385,6 +382,7 @@ GameResult Simulator::runSingleGame(const std::string &gmName, const GameMapInfo
 
     TankAlgorithmFactory tankAlgo1Factory = [&tankRegistrar, &alg1](int player_index, int tank_index) {
         // Find the last registered factory with this name
+        std::cout << "[DEBUG] Registered algorithms in registrar:\n";
         for (const auto& entry : tankRegistrar) {
             if (entry.name() == alg1 && entry.hasTankAlgorithmFactory()) {
                 return entry.createTankAlgorithm(player_index, tank_index);
@@ -394,6 +392,7 @@ GameResult Simulator::runSingleGame(const std::string &gmName, const GameMapInfo
     };
 
     TankAlgorithmFactory tankAlgo2Factory = [&tankRegistrar, &alg2](int player_index, int tank_index) {
+        std::cout << "[DEBUG] Registered algorithms in registrar:\n";
         for (const auto& entry : tankRegistrar) {
             if (entry.name() == alg2 && entry.hasTankAlgorithmFactory()) {
                 return entry.createTankAlgorithm(player_index, tank_index);
@@ -452,12 +451,6 @@ GameResult Simulator::runSingleGame(const std::string &gmName, const GameMapInfo
         *player2, alg2,
         tankAlgo1Factory, tankAlgo2Factory);
 
-    // 6. Write output file (optional)
-    //std::string output_file = "output_" + gmName + ".txt";
-    //gm->writeOutput(output_file);
-    
-    // 7. Extract the game result from gm or keep your own logic to gather it
-    //return gm->getGameResult();  // You need to implement this or similar method
     return result;
 }
 
@@ -505,7 +498,8 @@ void Simulator::writeComparativeOutput(
     const std::string& algo2Name,
     const GroupedResults& grouped
 ) {
-    std::string filename = outputFolder + "/comparative_results_" + generateTimestamp() + ".txt";
+    //std::string filename = outputFolder + "/comparative_results_" + generateTimestamp() + ".txt";
+    std::string filename = generateFilename("comparative_results", outputFolder);
     std::ofstream out(filename);
     if (!out) {
         std::cerr << "[Error] Could not open " << filename << " for writing.\n";
@@ -537,6 +531,10 @@ void Simulator::writeComparativeOutput(
 }
 
 // Helpers --------------------------------------------------------------
+std::string Simulator::generateFilename(const std::string& prefix, const std::string& folder) const {
+    return folder + "/" + prefix + "_" + generateTimestamp() + ".txt";
+}
+
 
 std::string Simulator::formatResultMessage(const GameResult& r) {
     auto rem = [&](int playerIdx)->size_t {
@@ -584,12 +582,10 @@ std::string Simulator::generateTimestamp() const {
     return buf;
 }
 
-
-/******************** NEW IMPLEMENTATION *********************************/
-
 //-------------------------------------------------
 // Competitive Run Mode
 //-------------------------------------------------
+
 void Simulator::runCompetitive(
     const std::string& algorithms_folder,
     const std::string& game_maps_folder,
@@ -598,7 +594,6 @@ void Simulator::runCompetitive(
     bool verbose)
 {
     // 1. Load algorithms
-
     loadAlgorithms(algorithms_folder, verbose);
     size_t N = algo_handles.size();
     if (N < 2) {
@@ -607,7 +602,7 @@ void Simulator::runCompetitive(
     }
 
     // 2. Load maps
-    auto maps = loadGameMaps(game_maps_folder); // your existing loader
+    auto maps = loadGameMaps(game_maps_folder);
     size_t K = maps.size();
     if (K == 0) {
         std::cerr << "Error: No maps found in folder " << game_maps_folder << "\n";
@@ -642,94 +637,95 @@ void Simulator::runCompetitive(
         throw std::runtime_error("[Simulator] No tank algorithms registered.");
     }
 
-    //auto& algo_registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
     for (const auto& entry : algo_registrar) {
         scores[entry.name()] = 0;
     }
 
-
-    // Mutex for thread-safe scoring
+    ThreadPool pool(num_threads >= 1 ? num_threads : 1);
     std::mutex score_mutex;
 
-    // 5. Thread pool 
-    std::vector<std::thread> workers;
+    using AlgoEntry = std::remove_reference_t<decltype(*algo_registrar.begin())>;
+    std::vector<const AlgoEntry*> algo_entries;
+    for (const auto& entry : algo_registrar) {
+        algo_entries.push_back(&entry);
+    }
+
+    std::set<std::tuple<std::string, std::string, std::string>> executed_pairs;
+    static std::mutex dedup_mutex;
 
     for (size_t k = 0; k < K; ++k) {
-        auto& map_info = maps[k];
+        const GameMapInfo* map_ptr = &maps[k];  // will capture this pointer
 
         for (size_t i = 0; i < N; ++i) {
-            size_t opponent = (i + 1 + (k % (N - 1))) % N;
+            for (size_t j = i + 1; j < N; ++j) {
+                const AlgoEntry* entry1_ptr = algo_entries[i];
+                const AlgoEntry* entry2_ptr = algo_entries[j];
 
-            // Special case: N even and kth == N/2 - 1 → skip duplicate matches
-            if (N % 2 == 0 && k == N/2 - 1 && opponent == (i + 1) % N) {
-                continue;
-            }
+                std::string a1 = entry1_ptr->name();
+                std::string a2 = entry2_ptr->name();
+                std::string map_name = map_ptr->name;
 
-            workers.emplace_back([&, i, opponent, k, gm_factory]() {
-                //auto& alg1 = algo_handles[i];
-                //auto& alg2 = algo_handles[opponent];
-                auto& algo_registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
-                const auto& algo_list = std::vector(algo_registrar.begin(), algo_registrar.end());
+                auto ordered_pair = std::minmax(a1, a2);
+                auto key = std::make_tuple(map_name, ordered_pair.first, ordered_pair.second);
 
-                const auto& entry1 = algo_list[i];
-                const auto& entry2 = algo_list[opponent];
+                {
+                    std::lock_guard<std::mutex> lock(dedup_mutex);
+                    std::cout << "[DEBUG] Dedup key check for: " << map_name
+                            << " (" << ordered_pair.first << " vs " << ordered_pair.second << ")\n";
 
-                //GameResult result = gm->run(
-                auto gm_instance = gm_factory(verbose);
+                    if (executed_pairs.count(key)) {
+                        std::cout << "[DEBUG] Skipping duplicate for: " << map_name << "\n";
+                        continue;
+                    }
 
-                GameResult result = gm_instance->run(
-                    map_info.cols, map_info.rows,
-                    *map_info.view, map_info.name,
-                    map_info.max_steps, map_info.num_shells,
-                    *entry1.createPlayer(0, map_info.x1, map_info.y1, map_info.max_steps, map_info.num_shells), entry1.name(),
-                    *entry2.createPlayer(1, map_info.x2, map_info.y2, map_info.max_steps, map_info.num_shells), entry2.name(),
-                    [=](int player, int tank) { return entry1.createTankAlgorithm(player, tank); },
-                    [=](int player, int tank) { return entry2.createTankAlgorithm(player, tank); }
-                );
-
-                // Update scores safely
-                std::lock_guard<std::mutex> lock(score_mutex);
-                if (result.winner == 1) {
-                    scores[entry1.name()] += 3;
-                } else if (result.winner == 2) {
-                    scores[entry2.name()] += 3;
-                } else {
-                    scores[entry1.name()] += 1;
-                    scores[entry2.name()] += 1;
+                    executed_pairs.insert(key);
                 }
-            });
 
-            if (workers.size() >= num_threads) {
-                for (auto& w : workers) w.join();
-                workers.clear();
+                pool.enqueue([&, entry1_ptr, entry2_ptr, map_ptr, a1, a2]() {
+                    const GameMapInfo& map_info = *map_ptr;  // safely dereferenced inside thread
+
+                    std::cout << "[DEBUG] Running game: " << map_info.name
+                            << " | " << a1 << " vs " << a2 << std::endl;
+
+                    auto gm_instance = gm_factory(verbose);
+
+                    auto player1 = entry1_ptr->createPlayer(0, map_info.x1, map_info.y1, map_info.max_steps, map_info.num_shells);
+                    auto player2 = entry2_ptr->createPlayer(1, map_info.x2, map_info.y2, map_info.max_steps, map_info.num_shells);
+
+                    GameResult result = gm_instance->run(
+                        map_info.cols, map_info.rows,
+                        *map_info.view, map_info.name,
+                        map_info.max_steps, map_info.num_shells,
+                        *player1, a1,
+                        *player2, a2,
+                        [=](int player, int tank) { return entry1_ptr->createTankAlgorithm(player, tank); },
+                        [=](int player, int tank) { return entry2_ptr->createTankAlgorithm(player, tank); }
+                    );
+
+                    std::lock_guard<std::mutex> lock(score_mutex);
+                    if (result.winner == 1) {
+                        scores[a1] += 3;
+                    } else if (result.winner == 2) {
+                        scores[a2] += 3;
+                    } else {
+                        scores[a1] += 1;
+                        scores[a2] += 1;
+                    }
+                });
             }
         }
     }
 
-    // Join any leftover workers
-    for (auto& w : workers) w.join();
-    workers.clear();
+    pool.wait();
 
-    // 6. Sort results by score
+    // 6. Sort and write results
     std::vector<std::pair<std::string, int>> ranking(scores.begin(), scores.end());
-    std::sort(ranking.begin(), ranking.end(),
-              [](auto& a, auto& b) { return a.second > b.second; });
+    std::sort(ranking.begin(), ranking.end(), [](auto& a, auto& b) { return a.second > b.second; });
 
-    // 7. Prepare filename
-    auto now = std::chrono::system_clock::now();
-    auto t = std::chrono::system_clock::to_time_t(now);
-    std::stringstream filename;
-    filename << algorithms_folder << "/competition_" << t << ".txt";
-
-    std::ofstream out(filename.str());
-    if (!out) {
-        std::cerr << "Error: Could not create file " << filename.str()
-                  << ". Printing results to screen.\n";
-    }
-
+    std::string filename = generateFilename("competition", algorithms_folder);
+    std::ofstream out(filename);
     std::ostream& os = out ? out : std::cout;
 
-    // 8. Write results
     os << "game_maps_folder=" << game_maps_folder << "\n";
     os << "game_manager=" << game_manager_so << "\n\n";
 
@@ -738,13 +734,12 @@ void Simulator::runCompetitive(
     }
 
     if (out) {
-        std::cout << "Competition results saved to " << filename.str() << "\n";
+        std::cout << "Competition results saved to " << filename << "\n";
     }
 }
 
-
+/*
 std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_folder) {
-    namespace fs = std::filesystem;
 
     std::vector<GameMapInfo> maps;
 
@@ -759,6 +754,43 @@ std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_fo
 
                 try {
                     GameMapInfo map_info = loadGameMap(filename);
+                    maps.push_back(std::move(map_info));
+                } catch (const std::exception& e) {
+                    std::cerr << "Skipping map file " << filename
+                              << " due to error: " << e.what() << "\n";
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading maps from folder " << game_maps_folder
+                  << ": " << e.what() << "\n";
+    }
+
+    return maps;
+}
+*/
+
+std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_folder) {
+    std::vector<GameMapInfo> maps;
+
+    try {
+        if (!fs::exists(game_maps_folder) || !fs::is_directory(game_maps_folder)) {
+            throw std::runtime_error("Invalid maps folder: " + game_maps_folder);
+        }
+
+        for (const auto& entry : fs::directory_iterator(game_maps_folder)) {
+            if (entry.is_regular_file()) {
+                std::string filename = entry.path().string();
+
+                try {
+                    GameMapInfo map_info = loadGameMap(filename);
+
+                    if (!map_info.view) {
+                        std::cerr << "[WARNING] Skipping map " << filename
+                                  << ": SatelliteView is null\n";
+                        continue;
+                    }
+
                     maps.push_back(std::move(map_info));
                 } catch (const std::exception& e) {
                     std::cerr << "Skipping map file " << filename
