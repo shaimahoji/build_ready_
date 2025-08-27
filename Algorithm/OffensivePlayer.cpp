@@ -29,6 +29,9 @@ Player_322719139_211961057_A::Player_322719139_211961057_A(int player_index, siz
       enemy_tanks_(),
       aggression_level_(0.8) {
 
+    std::cout << "---------- Player constructor ---------- \n";
+    std::cout << "Board dimensions: " << board_width_ << "x" << board_height_ << "\n";
+
     size_t start_x = board_width_ / 2;
     size_t start_y = board_height_ / 2;
     
@@ -202,10 +205,12 @@ void Player_322719139_211961057_A::updateBoardInfo(SatelliteView& satellite_view
 
 int Player_322719139_211961057_A::getTankIndexFromSatellite(const SatelliteView& satellite_view) {
     int tank_index = 0;
+    std::cout << "---------- getTankIndexFromSatellite ---------- \n";
+    std::cout << "Board dimensions: " << board_width_ << "x" << board_height_ << "\n";
 
     for (size_t y = 0; y < board_height_; ++y) {
         for (size_t x = 0; x < board_width_; ++x) {
-
+            std::cout << "within inner for loop\n";
             char object = satellite_view.getObjectAt(x, y);
 
             if(object =='1' || object == '2') {

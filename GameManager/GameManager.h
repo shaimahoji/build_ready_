@@ -60,9 +60,10 @@ public:
 private:
     bool verbose_;
 
-
     //attempt
     std::array<size_t, 2> tank_counts_;  // index 0 = player 1, index 1 = player 2
+    std::string player1_algo_name_;
+    std::string player2_algo_name_;
 
     bool output_ok_ = false;
 

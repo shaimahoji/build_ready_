@@ -126,6 +126,11 @@ void MyGameManager_322719139_211961057::initializeTanks(
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory
 ) {
+    std::cout << "---------- save me? -----------\n";
+    std::cout << "[DEBUG] Player mapping:\n";
+    std::cout << "  Player 1 is: " << player1_algo_name_ << "\n";
+    std::cout << "  Player 2 is: " << player2_algo_name_ << "\n";
+
     std::size_t total_tanks = 0;
 
     std::vector<std::tuple<size_t, size_t, int>> all_tank_positions; // x, y, player_idx
@@ -168,9 +173,10 @@ void MyGameManager_322719139_211961057::initializeTanks(
             (player_idx == 1 ? player1_tank_algo_factory : player2_tank_algo_factory)(player_idx, corrected_tank_idx);
 
         if (!tank_algorithm) {
-            std::cerr << "[FATAL] TankAlgorithm factory returned nullptr for player "
-                      << player_idx << ", tank " << corrected_tank_idx << "\n";
-            std::exit(1);
+            std::ostringstream oss;
+            oss << "[FATAL] TankAlgorithm factory returned nullptr for player "
+                << player_idx << ", tank " << corrected_tank_idx;
+            throw std::runtime_error(oss.str());
         }
 
         tanks_.emplace_back(std::move(tank_data), std::move(tank_algorithm));
@@ -179,82 +185,6 @@ void MyGameManager_322719139_211961057::initializeTanks(
     overall_shells = total_tanks * num_shells_;
     ordered_actions.resize(tanks_.size(), {"UNKNOWN", false});
 }
-
-/* Previous HW3 implementation - to be deleted
-
-/*
-void MyGameManager_322719139_211961057::initializeTanks(
-    const std::map<int, std::vector<std::pair<size_t, size_t>>>& player_tank_positions,
-    TankAlgorithmFactory player1_tank_algo_factory,
-    TankAlgorithmFactory player2_tank_algo_factory
-) {
-
-    std::size_t total_tanks = 0;
-    
-    // Create tanks in spawn order (row by row, left to right)
-    // First collect all tank positions with their spawn order
-    std::vector<std::tuple<size_t, size_t, int, int>> all_tank_positions; // x, y, player_idx, tank_idx
-    
-    for (const auto& [player_idx, positions] : player_tank_positions) {
-        if (!positions.empty()) {
-            
-            for (size_t i = 0; i < positions.size(); ++i) {
-                const auto& [tank_x, tank_y] = positions[i];
-                all_tank_positions.emplace_back(tank_x, tank_y, player_idx, static_cast<int>(i));
-                total_tanks++;
-            }
-        }
-    }
-    
-    // Sort by spawn order (row by row, left to right)
-    std::sort(all_tank_positions.begin(), all_tank_positions.end(),
-        [](const auto& a, const auto& b) {
-            size_t y_a = std::get<1>(a), x_a = std::get<0>(a);
-            size_t y_b = std::get<1>(b), x_b = std::get<0>(b);
-            if (y_a != y_b) return y_a < y_b;  // Row by row
-            return x_a < x_b;  // Left to right within row
-        });
-    
-    // Create tanks in the sorted order using std::make_unique
-    tanks_.reserve(total_tanks);
-    for (const auto& [tank_x, tank_y, player_idx, tank_idx] : all_tank_positions) {
-        // Create tank data
-        Direction direction = (player_idx == 1) ? Direction::LEFT : Direction::RIGHT;
-        std::cout << "----------- Creating tank -----------" << "\n";
-        std::cout << "player << " << player_idx 
-                  << ", tank_idx: " << tank_idx 
-                  << ", tank_x: " << tank_x 
-                  << ", tank_y: " << tank_y 
-                  << ", direction: " << DirectionUtil::toString(direction) 
-                  << ", num_shells_: " << num_shells_ << std::endl; //which presents remaining shells
-        TankData tank_data(player_idx, tank_idx, tank_x, tank_y, direction, num_shells_);
-        
-        // Create tank algorithm using factory (which should use std::make_unique internally)
-        std::unique_ptr<TankAlgorithm> tank_algorithm;
-
-        if (player_idx == 1) {
-            tank_algorithm = player1_tank_algo_factory(player_idx, tank_idx);
-        } else { // player_idx == 2
-            tank_algorithm = player2_tank_algo_factory(player_idx, tank_idx);
-        }
-
-        if (!tank_algorithm) {
-            std::cerr << "[FATAL] TankAlgorithm factory returned nullptr for player " << player_idx
-                    << ", tank " << tank_idx << "\n";
-            std::exit(1); // Or throw std::runtime_error
-        }
-
-        // Create and add the tank
-        tanks_.emplace_back(std::move(tank_data), std::move(tank_algorithm));
-    }
-    
-    overall_shells = total_tanks * num_shells_;
-    ordered_actions.resize(tanks_.size(), {"UNKNOWN", false}); // previously my_vector
-}
-*/
-
-
-
 
 /********* Helper functions to make readBoard more concise and readable ************/
 void MyGameManager_322719139_211961057::parseHeaderLine(const std::string& line, const std::string& key, size_t& out) {
@@ -331,6 +261,8 @@ GameResult MyGameManager_322719139_211961057::run(
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory)
 {
+    this->player1_algo_name_ = name1;
+    this->player2_algo_name_ = name2;
 
     if (verbose_ && output_file_.empty()) {
         std::string sanitized_map = map_name.empty() ? "unknown_map" : std::filesystem::path(map_name).stem().string();

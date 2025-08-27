@@ -442,8 +442,17 @@ GameResult Simulator::runSingleGame(const std::string &gmName, const GameMapInfo
     }();
 
     // Own the unique_ptrs to keep them alive
-    std::unique_ptr<Player> player1 = player1Factory(0, mapInfo.x1, mapInfo.y1, mapInfo.max_steps, mapInfo.num_shells);
-    std::unique_ptr<Player> player2 = player2Factory(1, mapInfo.x2, mapInfo.y2, mapInfo.max_steps, mapInfo.num_shells);
+    //adan
+    auto* concrete_view = dynamic_cast<const UserCommon_322719139_211961057::GameSatelliteView*>(mapInfo.view.get());
+    if (!concrete_view) {
+        throw std::runtime_error("Expected concrete GameSatelliteView for Player construction");
+    }
+
+    std::unique_ptr<Player> player1 = player1Factory(0, concrete_view->getBoardWidth(), concrete_view->getBoardHeight(), mapInfo.max_steps, mapInfo.num_shells);
+    std::unique_ptr<Player> player2 = player2Factory(1, concrete_view->getBoardWidth(), concrete_view->getBoardHeight(), mapInfo.max_steps, mapInfo.num_shells);
+
+    //std::unique_ptr<Player> player1 = player1Factory(0, mapInfo.x1, mapInfo.y1, mapInfo.max_steps, mapInfo.num_shells);
+    //std::unique_ptr<Player> player2 = player2Factory(1, mapInfo.x2, mapInfo.y2, mapInfo.max_steps, mapInfo.num_shells);
 
     // Get raw pointers (safe because we retain ownership until run() ends)
     Player* player1_raw = player1.get();
@@ -709,8 +718,22 @@ void Simulator::runCompetitive(
 
                 auto gm_instance = gm_factory(verbose);
 
-                auto player1 = entry1_ptr->createPlayer(0, map_info.x1, map_info.y1, map_info.max_steps, map_info.num_shells);
-                auto player2 = entry2_ptr->createPlayer(1, map_info.x2, map_info.y2, map_info.max_steps, map_info.num_shells);
+                //adan
+                auto* concrete_view = dynamic_cast<UserCommon_322719139_211961057::GameSatelliteView*>(map_info.view.get());
+                if (!concrete_view) {
+                    throw std::runtime_error("Failed to cast SatelliteView");
+                }
+
+                auto board_width = concrete_view->getBoardWidth();
+                auto board_height = concrete_view->getBoardHeight();
+
+                auto player1 = entry1_ptr->createPlayer(0, board_width, board_height, map_info.max_steps, map_info.num_shells);
+                auto player2 = entry2_ptr->createPlayer(1, board_width, board_height, map_info.max_steps, map_info.num_shells);
+
+                //auto player1 = entry1_ptr->createPlayer(0, map_info.x1, map_info.y1, map_info.max_steps, map_info.num_shells);
+                //auto player2 = entry2_ptr->createPlayer(1, map_info.x2, map_info.y2, map_info.max_steps, map_info.num_shells);
+
+
 
                 GameResult result = gm_instance->run(
                     map_info.cols, map_info.rows,
