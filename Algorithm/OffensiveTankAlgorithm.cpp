@@ -219,6 +219,7 @@ bool TankAlgorithm_322719139_211961057_A::shouldRequestBattleInfo() const {
 
 ActionRequest TankAlgorithm_322719139_211961057_A::rotateToDirection(Direction target_direction) const {
     if (target_direction == current_direction_) {
+        std::cout << "[DEBUG] No rotation needed\n";
         return ActionRequest::DoNothing;
     }
 

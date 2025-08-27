@@ -207,6 +207,7 @@ int main(int argc, char* argv[]) {
             num_threads,
             verbose
         );
+        std::cout << "[Main] Comparative simulation completed.\n";
     } else if (mode == "-competition") {
         sim.runCompetitive(
             args["algorithms_folder"],

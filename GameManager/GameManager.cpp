@@ -265,15 +265,20 @@ GameResult MyGameManager_322719139_211961057::run(
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory)
 {
+    std::string output_filename = "output_file";
 
-    if (verbose_ && output_file_.empty()) {
+    //if (verbose_ && output_file_.empty()) {
+    //no need to check if file is empty we override it anyway
+    if (verbose_) {
         std::string sanitized_map = map_name.empty() ? "unknown_map" : std::filesystem::path(map_name).stem().string();
         std::string sanitized_name1 = name1.empty() ? "player1" : std::filesystem::path(name1).stem().string();
         std::string sanitized_name2 = name2.empty() ? "player2" : std::filesystem::path(name2).stem().string();
 
-        std::string output_filename = "output_" + sanitized_map + "_" + sanitized_name1 + "_vs_" + sanitized_name2 + ".txt";
+        output_filename = "output_" + sanitized_map + "_" + sanitized_name1 + "_vs_" + sanitized_name2 + ".txt";
         writeOutput(output_filename);
         std::cout << "[DEBUG] GameManager writing output file: " << output_filename << std::endl;
+        // Now the file is open and ready
+        output_ok_ = true;
     }
 
 
@@ -301,6 +306,8 @@ GameResult MyGameManager_322719139_211961057::run(
     std::cout << "[DEBUG] About to executeGameLoop()" << std::endl;
     executeGameLoop();
     std::cout << "[DEBUG] Finished game loop\n";
+    std::cout << "[DEBUG] GameManager writing output file: " << output_filename << std::endl;
+    //writeOutput(output_filename);
 
     // Step 5: Final result computation
     GameResult result;
@@ -356,6 +363,8 @@ GameResult MyGameManager_322719139_211961057::run(
     }
 
     result.gameState = std::make_unique<GameSatelliteView>(board_, 0, 0, 0);
+    
+    //std::cout << "[DEBUG] GameManager writing output file: " << output_filename << std::endl;
 
     return result;
 }
@@ -363,19 +372,19 @@ GameResult MyGameManager_322719139_211961057::run(
 
 void MyGameManager_322719139_211961057::executeGameLoop() {
     // Open output files only if verbose is enabled and filenames were set
-    if (verbose_ && !output_file_.empty()) {
-        output_stream_.open(output_file_);
-        game_log_stream_.open(game_log_file_);
-        visualization_stream_.open(visualization_file_);
+    //if (verbose_ && !output_file_.empty()) {
+     //   output_stream_.open(output_file_);
+    //    game_log_stream_.open(game_log_file_);
+    //    visualization_stream_.open(visualization_file_);
 
-        output_ok_ = output_stream_.is_open();
-        if (!output_ok_) {
-            std::cerr << "Error: Could not open output file " << output_file_
-                      << " — results will be printed to stdout.\n";
-        }
-    } else {
-        output_ok_ = false;
-    }
+    //    output_ok_ = output_stream_.is_open();
+    //    if (!output_ok_) {
+    //        std::cerr << "Error: Could not open output file " << output_file_
+    //                  << " — results will be printed to stdout.\n";
+    //    }
+    //} else {
+    //    output_ok_ = false;
+    //}
 
     initializeBoard();
     updateBoard();
@@ -528,13 +537,15 @@ void MyGameManager_322719139_211961057::logGameResult(const std::string& result,
     if (!output_stream_.is_open()) {
         return;
     }
-    
-    output_stream_ << "\nGame Result: " << result << "\n";
-    output_stream_ << "Reason: " << reason << "\n";
-    output_stream_ << "Total Steps: " << current_step_ << "\n";
+        
+    output_stream_ << "\nGame Result: " << result << std::endl;
+    output_stream_ << "Reason: " << reason << std::endl;
+    output_stream_ << "Total Steps: " << current_step_ << std::endl;
+
 }
 
 void MyGameManager_322719139_211961057::logFinalResult() {
+    std::cout << "[DEBUG] Entered logFinalResult()\n";
     // For graceful degradation.
     std::ostream& out = (output_ok_ && output_stream_.is_open()) ? output_stream_ : std::cout;
  
@@ -611,10 +622,11 @@ void MyGameManager_322719139_211961057::displayBoard() const {
 }
 
 void MyGameManager_322719139_211961057::logToFile() {
+    std::cout << "[DEBUG] logToFile() called\n";
     if (!verbose_) return;
 
     std::ostream& out = (output_ok_ && output_stream_.is_open()) ? output_stream_ : std::cout;
-
+    std::cout << "[DEBUG] action size: " << ordered_actions.size() << "\n";
     if (ordered_actions.size() != tanks_.size()) {
         std::cerr << "[ERROR] logToFile: ordered_actions.size() = " 
                   << ordered_actions.size()
@@ -639,7 +651,8 @@ void MyGameManager_322719139_211961057::logToFile() {
         }
     }
 
-    out << '\n';
+    //out << '\n';
+    out << std::endl; //flush
 }
 
 
@@ -712,14 +725,32 @@ void MyGameManager_322719139_211961057::handleBattleInfoRequest(int player_idx, 
         return;
     }
     
+    if (!tank->algorithm) {
+        if (tank->data.player_index == 1) {
+            tank->algorithm = tank_algorithm_factory_p1_(player_idx, tank_idx);
+        } else {
+            tank->algorithm = tank_algorithm_factory_p2_(player_idx, tank_idx);
+        }
+        if (!tank->algorithm) {
+            std::cerr << "Error: failed to create algorithm for player "
+                      << player_idx << " tank " << tank_idx << "\n";
+            return;
+        }
+    }
     // debugging to find error
     //floating attempt
     //if (!players_[player_idx - 1]) {
-    if (static_cast<Player*>(this->players_[player_idx - 1])) {
-    //if (!this->players_[player_idx - 1]) {
+    Player* player_ptr = static_cast<Player*>(this->players_[player_idx - 1]);
+    if (!player_ptr) {
         std::cerr << "Error: players_[" << (player_idx - 1) << "] is nullptr!\n";
         return;
     }
+    //if (static_cast<Player*>(this->players_[player_idx - 1])) {
+    //    if (!this->players_[player_idx - 1]) {
+    //    std::cerr << "Error: players_[" << (player_idx - 1) << "] is nullptr!\n";
+    //    return;
+    //}
+
     if (!tank->algorithm) {
         std::cerr << "Error: tank algorithm is nullptr!\n";
         return;
@@ -731,7 +762,8 @@ void MyGameManager_322719139_211961057::handleBattleInfoRequest(int player_idx, 
     }
     
     // Create satellite view
-    GameSatelliteView satellite_view(board_, tank->data.x, tank->data.y, player_idx);
+    //GameSatelliteView satellite_view(board_, tank->data.x, tank->data.y, player_idx);
+    GameSatelliteView satellite_view(board_, tank->data.x, tank->data.y, player_idx,tank->data.tank_index);
 
     std::cout << "Calling updateTankWithBattleInfo for player " << player_idx 
           << ", tank " << tank_idx << "\n";
@@ -747,6 +779,8 @@ void MyGameManager_322719139_211961057::handleBattleInfoRequest(int player_idx, 
     logAction(player_idx, tank_idx, ActionRequest::GetBattleInfo, true);
     std::cout << "finished handleBattleInfoRequest\n";
 }
+
+
 
 void MyGameManager_322719139_211961057::processAction(int player_idx, int tank_idx, ActionRequest action) {
     // Find the tank data in the unified storage

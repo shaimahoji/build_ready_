@@ -66,7 +66,9 @@ void Player_322719139_211961057_A::updateTankWithBattleInfo(TankAlgorithm& tank,
         return;
     }
 
-    int tank_index = getTankIndexFromSatellite(satellite_view);
+    //int tank_index = getTankIndexFromSatellite(satellite_view);
+    int tank_index = offensive_tank->getTankIndex() - 1;
+
     if (tank_index < 0) {
         std::cerr << "[Error] Failed to find tank index from satellite view\n";
         return;
@@ -75,6 +77,7 @@ void Player_322719139_211961057_A::updateTankWithBattleInfo(TankAlgorithm& tank,
     std::cout << "[DEBUG] Tank index: " << tank_index << "\n";
 
     if (tank_index < 0 || tank_index >= static_cast<int>(my_tanks_.size())) {
+        std::cerr << "[Error] my tanks size: " << my_tanks_.size() << "\n";
         std::cerr << "[Error] Tank index out of range\n";
         return;
     }

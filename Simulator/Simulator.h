@@ -69,13 +69,14 @@ public:
     using GroupedResults = std::map<std::tuple<std::string, size_t, std::string>, std::vector<std::string>>;
     GroupedResults groupResults(const GameMapInfo& map_info);
 
+    void writeComparativeOutput2(const std::string &outputFolder, const std::string &gameMapName, const std::string &algo1Name, const std::string &algo2Name, const GroupedResults &grouped);
+
     void writeComparativeOutput(
-        const std::string& output_folder,
-        const std::string& game_map_name,
-        const std::string& algo1_name,
-        const std::string& algo2_name,
-        const GroupedResults& grouped
-    );
+        const std::string &output_folder,
+        const std::string &game_map_name,
+        const std::string &algo1_name,
+        const std::string &algo2_name,
+        const GroupedResults &grouped);
 
     std::string serializeMap(const SatelliteView& view, size_t width, size_t height);
     std::string formatResultMessage(const GameResult& r);

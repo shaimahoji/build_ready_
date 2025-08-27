@@ -59,7 +59,8 @@ public:
 
 private:
     bool verbose_;
-
+    TankAlgorithmFactory tank_algorithm_factory_p1_;
+    TankAlgorithmFactory tank_algorithm_factory_p2_;
 
     //attempt
     std::array<size_t, 2> tank_counts_;  // index 0 = player 1, index 1 = player 2
@@ -139,7 +140,16 @@ private:
             }
             return *this;
         }
-        
+
+        //to initilize tank index      
+        Tank(int player_index,
+            int tank_index,
+            const TankAlgorithmFactory& factory)
+            : algorithm(factory(player_index, tank_index)) {
+            data.player_index = player_index;
+            data.tank_index   = tank_index;
+        }
+
         // Delete copy constructor and copy assignment to ensure unique ownership
         Tank(const Tank&) = delete;
         Tank& operator=(const Tank&) = delete;

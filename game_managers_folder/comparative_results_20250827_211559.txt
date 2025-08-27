@@ -1,0 +1,27 @@
+game_map=game_map.txt
+algorithm1=Algorithm_322719139_211961057.so
+algorithm2=Algorithm_322719139_211961057.so
+
+GameManager_211822804_314753732.so
+Tie - max steps reached
+20
+        
+# @#@ # 
+###     
+        
+
+GameManager_206038929_314620071.so
+Tie - max steps reached
+20
+    1  2
+# @#@ # 
+###1    
+2  1    
+
+GameManager_322719139_211961057.so
+Tie - max steps reached
+20
+%   1  2
+# @#@ # 
+###1    
+2  1    
