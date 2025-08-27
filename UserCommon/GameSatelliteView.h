@@ -26,7 +26,8 @@ namespace UserCommon_322719139_211961057 {
         ~GameSatelliteView() override = default;
         
         char getObjectAt(size_t x, size_t y) const override;
-        size_t getBoardWidth() const  { return board_width_; };
+        char getObjectAt2(size_t x, size_t y) const;
+        size_t getBoardWidth() const { return board_width_; };
         size_t getBoardHeight() const { return board_height_; };
     };
 } // namespace

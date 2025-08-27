@@ -1,0 +1,5 @@
+Get Battle Info, Get Battle Info, Get Battle Info, Get Battle Info, Get Battle Info, Get Battle Info
+Do Nothing, Rotate Left 45, Do Nothing, Rotate Left 45, Do Nothing, Rotate Left 90
+Do Nothing, Move Forward (killed), Do Nothing, Rotate Left 90 (killed), Do Nothing, Move Forward
+Do Nothing, Move Forward (killed), Do Nothing, Rotate Left 90 (killed), Do Nothing, Move Forward (killed)
+Player 1 won with 3 tanks still alive

@@ -81,6 +81,8 @@ public:
     std::string serializeMap(const SatelliteView& view, size_t width, size_t height);
     std::string formatResultMessage(const GameResult& r);
 
+    std::string serializeMap2(const UserCommon_322719139_211961057::GameSatelliteView &view, size_t width, size_t height);
+
     std::string generateTimestamp() const;
 
     //void runCompetitive(const std::string &algorithms_folder, const std::string &game_maps_folder, const std::string &game_manager_so, size_t num_threads, bool verbose);
