@@ -126,6 +126,68 @@ void MyGameManager_322719139_211961057::initializeTanks(
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory
 ) {
+    std::size_t total_tanks = 0;
+
+    std::vector<std::tuple<size_t, size_t, int>> all_tank_positions; // x, y, player_idx
+
+    for (const auto& [player_idx, positions] : player_tank_positions) {
+        for (const auto& [tank_x, tank_y] : positions) {
+            all_tank_positions.emplace_back(tank_x, tank_y, player_idx);
+            total_tanks++;
+        }
+    }
+
+    // Sort by spawn order: row by row, left to right
+    std::sort(all_tank_positions.begin(), all_tank_positions.end(),
+        [](const auto& a, const auto& b) {
+            size_t y_a = std::get<1>(a), x_a = std::get<0>(a);
+            size_t y_b = std::get<1>(b), x_b = std::get<0>(b);
+            if (y_a != y_b) return y_a < y_b;
+            return x_a < x_b;
+        });
+
+    // Reset tank indices per player
+    std::map<int, int> tank_index_per_player;
+
+    tanks_.reserve(total_tanks);
+    for (const auto& [tank_x, tank_y, player_idx] : all_tank_positions) {
+        int corrected_tank_idx = tank_index_per_player[player_idx]++;
+        Direction direction = (player_idx == 1) ? Direction::LEFT : Direction::RIGHT;
+
+        std::cout << "----------- Creating tank -----------" << "\n";
+        std::cout << "player << " << player_idx 
+                  << ", tank_idx: " << corrected_tank_idx 
+                  << ", tank_x: " << tank_x 
+                  << ", tank_y: " << tank_y 
+                  << ", direction: " << DirectionUtil::toString(direction) 
+                  << ", num_shells_: " << num_shells_ << std::endl;
+
+        TankData tank_data(player_idx, corrected_tank_idx, tank_x, tank_y, direction, num_shells_);
+
+        std::unique_ptr<TankAlgorithm> tank_algorithm =
+            (player_idx == 1 ? player1_tank_algo_factory : player2_tank_algo_factory)(player_idx, corrected_tank_idx);
+
+        if (!tank_algorithm) {
+            std::cerr << "[FATAL] TankAlgorithm factory returned nullptr for player "
+                      << player_idx << ", tank " << corrected_tank_idx << "\n";
+            std::exit(1);
+        }
+
+        tanks_.emplace_back(std::move(tank_data), std::move(tank_algorithm));
+    }
+
+    overall_shells = total_tanks * num_shells_;
+    ordered_actions.resize(tanks_.size(), {"UNKNOWN", false});
+}
+
+/* Previous HW3 implementation - to be deleted
+
+/*
+void MyGameManager_322719139_211961057::initializeTanks(
+    const std::map<int, std::vector<std::pair<size_t, size_t>>>& player_tank_positions,
+    TankAlgorithmFactory player1_tank_algo_factory,
+    TankAlgorithmFactory player2_tank_algo_factory
+) {
 
     std::size_t total_tanks = 0;
     
@@ -158,7 +220,7 @@ void MyGameManager_322719139_211961057::initializeTanks(
     for (const auto& [tank_x, tank_y, player_idx, tank_idx] : all_tank_positions) {
         // Create tank data
         Direction direction = (player_idx == 1) ? Direction::LEFT : Direction::RIGHT;
-        std::cout << "----------- Creating tank -----------" << std::endl;
+        std::cout << "----------- Creating tank -----------" << "\n";
         std::cout << "player << " << player_idx 
                   << ", tank_idx: " << tank_idx 
                   << ", tank_x: " << tank_x 
@@ -189,6 +251,10 @@ void MyGameManager_322719139_211961057::initializeTanks(
     overall_shells = total_tanks * num_shells_;
     ordered_actions.resize(tanks_.size(), {"UNKNOWN", false}); // previously my_vector
 }
+*/
+
+
+
 
 /********* Helper functions to make readBoard more concise and readable ************/
 void MyGameManager_322719139_211961057::parseHeaderLine(const std::string& line, const std::string& key, size_t& out) {
@@ -715,11 +781,11 @@ void MyGameManager_322719139_211961057::handleBattleInfoRequest(int player_idx, 
     // debugging to find error
     //floating attempt
     //if (!players_[player_idx - 1]) {
-    if (static_cast<Player*>(this->players_[player_idx - 1])) {
-    //if (!this->players_[player_idx - 1]) {
+    if (!this->players_[player_idx - 1]) {
         std::cerr << "Error: players_[" << (player_idx - 1) << "] is nullptr!\n";
         return;
     }
+
     if (!tank->algorithm) {
         std::cerr << "Error: tank algorithm is nullptr!\n";
         return;

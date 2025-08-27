@@ -300,6 +300,7 @@ void Simulator::loadTwoAlgorithms(
     const std::string& algo2Path,
     bool verbose
 ) {
+    std::cout << "---------- loadTwoAlgorithms ----------" << "\n";
     // Clear previous handles
     algo_handles.clear(); 
 
@@ -440,18 +441,23 @@ GameResult Simulator::runSingleGame(const std::string &gmName, const GameMapInfo
         throw std::runtime_error("Player factory not found: " + alg2);
     }();
 
-    // Create players
-    auto player1 = player1Factory(0, mapInfo.x1, mapInfo.y1, mapInfo.max_steps, mapInfo.num_shells);
-    auto player2 = player2Factory(1, mapInfo.x2, mapInfo.y2, mapInfo.max_steps, mapInfo.num_shells);
+    // Own the unique_ptrs to keep them alive
+    std::unique_ptr<Player> player1 = player1Factory(0, mapInfo.x1, mapInfo.y1, mapInfo.max_steps, mapInfo.num_shells);
+    std::unique_ptr<Player> player2 = player2Factory(1, mapInfo.x2, mapInfo.y2, mapInfo.max_steps, mapInfo.num_shells);
 
+    // Get raw pointers (safe because we retain ownership until run() ends)
+    Player* player1_raw = player1.get();
+    Player* player2_raw = player2.get();
 
     // 5. Run the game
     auto result = gm->run(mapInfo.cols, mapInfo.rows, *mapInfo.view, mapInfo.name, mapInfo.max_steps, mapInfo.num_shells,
-        *player1, alg1,
-        *player2, alg2,
+        *player1_raw, alg1,
+        *player2_raw, alg2,
         tankAlgo1Factory, tankAlgo2Factory);
 
+    // unique_ptrs destruct after this line, which is fine
     return result;
+
 }
 
 
@@ -650,69 +656,83 @@ void Simulator::runCompetitive(
         algo_entries.push_back(&entry);
     }
 
+    // Making it deterministic
+    std::sort(algo_entries.begin(), algo_entries.end(),
+        [](const AlgoEntry* a, const AlgoEntry* b) {
+            return std::filesystem::path(a->name()).filename().string() <
+                std::filesystem::path(b->name()).filename().string();
+        });
+
+
     std::set<std::tuple<std::string, std::string, std::string>> executed_pairs;
-    static std::mutex dedup_mutex;
+    //static std::mutex dedup_mutex;
+    std::mutex dedup_mutex;
 
     for (size_t k = 0; k < K; ++k) {
         const GameMapInfo* map_ptr = &maps[k];  // will capture this pointer
 
+        //for (size_t i = 0; i < N; ++i) {
+            //for (size_t j = i + 1; j < N; ++j) {
         for (size_t i = 0; i < N; ++i) {
-            for (size_t j = i + 1; j < N; ++j) {
-                const AlgoEntry* entry1_ptr = algo_entries[i];
-                const AlgoEntry* entry2_ptr = algo_entries[j];
+            size_t j = (i + 1 + (k % (N - 1))) % N; // Pairing Formula set by the assignment
 
-                std::string a1 = entry1_ptr->name();
-                std::string a2 = entry2_ptr->name();
-                std::string map_name = map_ptr->name;
+            if (i == j) continue;  // Safety check, though should never happen
 
-                auto ordered_pair = std::minmax(a1, a2);
-                auto key = std::make_tuple(map_name, ordered_pair.first, ordered_pair.second);
+            const AlgoEntry* entry1_ptr = algo_entries[i];
+            const AlgoEntry* entry2_ptr = algo_entries[j];
 
-                {
-                    std::lock_guard<std::mutex> lock(dedup_mutex);
-                    std::cout << "[DEBUG] Dedup key check for: " << map_name
-                            << " (" << ordered_pair.first << " vs " << ordered_pair.second << ")\n";
+            std::string a1 = entry1_ptr->name();
+            std::string a2 = entry2_ptr->name();
+            std::string map_name = map_ptr->name;
 
-                    if (executed_pairs.count(key)) {
-                        std::cout << "[DEBUG] Skipping duplicate for: " << map_name << "\n";
-                        continue;
-                    }
+            auto ordered_pair = std::minmax(a1, a2);
+            auto key = std::make_tuple(map_name, ordered_pair.first, ordered_pair.second);
 
-                    executed_pairs.insert(key);
+            {
+                std::lock_guard<std::mutex> lock(dedup_mutex);
+                std::cout << "[DEBUG] Dedup key check for: " << map_name
+                        << " (" << ordered_pair.first << " vs " << ordered_pair.second << ")\n";
+
+                if (executed_pairs.count(key)) {
+                    std::cout << "[DEBUG] Skipping duplicate for: " << map_name << "\n";
+                    continue;
                 }
 
-                pool.enqueue([&, entry1_ptr, entry2_ptr, map_ptr, a1, a2]() {
-                    const GameMapInfo& map_info = *map_ptr;  // safely dereferenced inside thread
-
-                    std::cout << "[DEBUG] Running game: " << map_info.name
-                            << " | " << a1 << " vs " << a2 << std::endl;
-
-                    auto gm_instance = gm_factory(verbose);
-
-                    auto player1 = entry1_ptr->createPlayer(0, map_info.x1, map_info.y1, map_info.max_steps, map_info.num_shells);
-                    auto player2 = entry2_ptr->createPlayer(1, map_info.x2, map_info.y2, map_info.max_steps, map_info.num_shells);
-
-                    GameResult result = gm_instance->run(
-                        map_info.cols, map_info.rows,
-                        *map_info.view, map_info.name,
-                        map_info.max_steps, map_info.num_shells,
-                        *player1, a1,
-                        *player2, a2,
-                        [=](int player, int tank) { return entry1_ptr->createTankAlgorithm(player, tank); },
-                        [=](int player, int tank) { return entry2_ptr->createTankAlgorithm(player, tank); }
-                    );
-
-                    std::lock_guard<std::mutex> lock(score_mutex);
-                    if (result.winner == 1) {
-                        scores[a1] += 3;
-                    } else if (result.winner == 2) {
-                        scores[a2] += 3;
-                    } else {
-                        scores[a1] += 1;
-                        scores[a2] += 1;
-                    }
-                });
+                executed_pairs.insert(key);
             }
+
+            pool.enqueue([&, entry1_ptr, entry2_ptr, map_ptr, a1, a2]() {
+                const GameMapInfo& map_info = *map_ptr;  // safely dereferenced inside thread
+
+                std::cout << "[DEBUG] Running game: " << map_info.name
+                        << " | " << a1 << " vs " << a2 << std::endl;
+
+                auto gm_instance = gm_factory(verbose);
+
+                auto player1 = entry1_ptr->createPlayer(0, map_info.x1, map_info.y1, map_info.max_steps, map_info.num_shells);
+                auto player2 = entry2_ptr->createPlayer(1, map_info.x2, map_info.y2, map_info.max_steps, map_info.num_shells);
+
+                GameResult result = gm_instance->run(
+                    map_info.cols, map_info.rows,
+                    *map_info.view, map_info.name,
+                    map_info.max_steps, map_info.num_shells,
+                    *player1, a1,
+                    *player2, a2,
+                    [=](int player, int tank) { return entry1_ptr->createTankAlgorithm(player, tank); },
+                    [=](int player, int tank) { return entry2_ptr->createTankAlgorithm(player, tank); }
+                );
+
+                std::lock_guard<std::mutex> lock(score_mutex);
+                if (result.winner == 1) {
+                    scores[a1] += 3;
+                } else if (result.winner == 2) {
+                    scores[a2] += 3;
+                } else {
+                    scores[a1] += 1;
+                    scores[a2] += 1;
+                }
+            });
+            //}
         }
     }
 
@@ -806,7 +826,7 @@ std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_fo
     return maps;
 }
 
-
+/*
 void Simulator::loadAlgorithms(const std::string& algorithms_folder, bool verbose) {
     // Clear previous handles
     algo_handles.clear();
@@ -836,6 +856,82 @@ void Simulator::loadAlgorithms(const std::string& algorithms_folder, bool verbos
                 std::cout << "[Simulator] Successfully registered algorithm: " << filename << "\n";
         } else {
             std::cerr << "[Simulator] Failed to register algorithm: " << filename << "\n";
+        }
+    }
+
+    if (algo_handles.size() < 2) {
+        throw std::runtime_error("[Simulator] Not enough valid algorithms found in folder. Need at least 2.");
+    }
+
+    if (verbose) {
+        std::cout << "[Simulator] Total algorithms registered: "
+                  << AlgorithmRegistrar::getAlgorithmRegistrar().count() << "\n";
+    }
+}
+*/
+
+void Simulator::loadAlgorithms(const std::string& algorithms_folder, bool verbose) {
+    algo_handles.clear();
+    DynamicLoader dynamic_loader;
+
+    if (!fs::exists(algorithms_folder) || !fs::is_directory(algorithms_folder)) {
+        throw std::runtime_error("[Simulator] Invalid algorithms folder: " + algorithms_folder);
+    }
+
+    std::unordered_set<std::string> seen_names;  // To prevent duplicate names
+
+    for (const auto& entry : fs::directory_iterator(algorithms_folder)) {
+        if (!entry.is_regular_file()) continue;
+
+        const std::string path = entry.path().string();
+        const std::string filename = entry.path().filename().string();
+
+        if (entry.path().extension() != ".so") {
+            if (verbose)
+                std::cerr << "[Simulator] Skipping non-.so file: " << path << "\n";
+            continue;
+        }
+
+        // Normalize name for registration (strip .so suffix)
+        std::string algo_name = entry.path().stem().string();
+
+        if (seen_names.count(algo_name)) {
+            std::cerr << "[Simulator] Skipping duplicate algorithm name: " << algo_name << "\n";
+            continue;
+        }
+        seen_names.insert(algo_name);
+
+        if (verbose) {
+            std::cout << "[Simulator] Attempting to register: " << algo_name
+                      << " from file: " << filename << "\n";
+        }
+
+        // Prepare registrar entry BEFORE dlopen
+        auto& registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
+        try {
+            registrar.createAlgorithmFactoryEntry(algo_name);
+        } catch (const std::exception& e) {
+            std::cerr << "[Simulator] Registration failed before dlopen: " << e.what() << "\n";
+            continue;
+        }
+
+        void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+        if (!handle) {
+            std::cerr << "[Simulator] dlopen failed: " << path << "\n";
+            std::cerr << "Reason: " << dlerror() << "\n";
+            registrar.removeLast();  // cleanup
+            continue;
+        }
+
+        // Validate registration
+        if (dynamic_loader.loadAlgorithmLibrary(path, algo_name, std::cerr)) {
+            algo_handles.push_back(handle);  // Keep if registration succeeded
+            if (verbose)
+                std::cout << "[Simulator] Successfully registered algorithm: " << algo_name << "\n";
+        } else {
+            std::cerr << "[Simulator] Registration failed for algorithm: " << algo_name << "\n";
+            dlclose(handle);  // cleanup
+            registrar.removeLast();  // safety cleanup
         }
     }
 

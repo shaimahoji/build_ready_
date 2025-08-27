@@ -61,8 +61,18 @@ bool AlgorithmRegistrar::AlgorithmAndPlayerFactories::hasTankAlgorithmFactory() 
 
 void AlgorithmRegistrar::createAlgorithmFactoryEntry(const std::string& name) {
     std::cout << "[DEBUG] Creating AlgorithmFactoryEntry for: " << name << "\n";
+
+    for (const auto& entry : algorithms) {
+        std::cout << "[DEBUG] Comparing against: " << entry.name() << "\n";
+        if (entry.name() == name) {
+            std::cerr << "[FATAL] Duplicate algorithm registration name: " << name << "\n";
+            throw std::runtime_error("Duplicate algorithm .so name: " + name);
+        }
+    }
+
     algorithms.emplace_back(name);
 }
+
 
 void AlgorithmRegistrar::addPlayerFactoryToLastEntry(PlayerFactory&& factory) {
     std::cout << "[DEBUG] Adding PlayerFactory\n";

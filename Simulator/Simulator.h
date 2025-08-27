@@ -7,6 +7,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <unordered_set>
 
 #include "../common/BattleInfo.h"
 #include "../common/ActionRequest.h"

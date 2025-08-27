@@ -59,12 +59,8 @@ Player_322719139_211961057_A::Player_322719139_211961057_A(const Player_32271913
 
 void Player_322719139_211961057_A::updateTankWithBattleInfo(TankAlgorithm& tank, SatelliteView& satellite_view) {
     std::cout << "---------- updateTankWithBattleInfo ---------- \n";
-
-    auto* offensive_tank = dynamic_cast<TankAlgorithm_322719139_211961057_A*>(&tank);
-    if (!offensive_tank) {
-        std::cerr << "[Error] Invalid tank type\n";
-        return;
-    }
+    std::cout << "Type of tank: " << typeid(tank).name() << "\n";
+    std::cout << "Type of satellite_view: " << typeid(satellite_view).name() << "\n";
 
     int tank_index = getTankIndexFromSatellite(satellite_view);
     if (tank_index < 0) {
@@ -138,8 +134,19 @@ void Player_322719139_211961057_A::updateTankWithBattleInfo(TankAlgorithm& tank,
         }
     }
 
-    offensive_tank->updateBattleInfo(battle_info);
+    std::cout << "[DEBUG] About to call tank.updateBattleInfo()\n";
+    try {
+        // Use the interface — no assumption about tank implementation
+        tank.updateBattleInfo(battle_info);
+    } catch (const std::exception& e) {
+        std::cerr << "[EXCEPTION] during tank.updateBattleInfo: " << e.what() << "\n";
+    } catch (...) {
+        std::cerr << "[EXCEPTION] Unknown error during tank.updateBattleInfo\n";
+    }
+
+    //tank.updateBattleInfo(battle_info);
 }
+
 
 void Player_322719139_211961057_A::updateBoardInfo(SatelliteView& satellite_view, int tank_index) {
     observed_shells_.clear();

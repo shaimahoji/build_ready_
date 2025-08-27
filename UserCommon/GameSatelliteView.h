@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <cstddef> // for size_t
+#include <mutex>
 
 #include "../common/SatelliteView.h"
 
