@@ -43,5 +43,14 @@ char GameSatelliteView::getObjectAt(size_t x, size_t y) const {
     return board_[y][x];
 }
 
+char GameSatelliteView::getObjectAt2(size_t x, size_t y) const {
+    // Check if position is outside the board
+    if (y >= board_.size() || x >= board_[0].size()) {
+        return '&';  // Outside battlefield
+    }
+    
+    // Otherwise, return the object at the position
+    return board_[y][x];
+}
 
 }  // namespace

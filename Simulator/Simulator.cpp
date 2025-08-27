@@ -108,19 +108,25 @@ void Simulator::runComparative(
 
     if (verbose) std::cout << "[Simulator] Tank Algorithm 2: " << alg2_name << "\n";
 
-    ThreadPool pool(num_threads >= 1 ? num_threads : 1);
-
-    for (const auto& gm_name : gm_names) {
-        pool.enqueue([&, gm_name]() {
-            std::cout << "[DEBUG] Running single game with: " << gm_name << "\n";
+    if (num_threads <= 1) {
+        for (const auto& gm_name : gm_names) {
+            std::cout << "[DEBUG] Running single game with: " << gm_name << "[DEBUG]\n";
             auto result = runSingleGame(gm_name, map_info, alg1_name, alg2_name, verbose);
-
-            std::lock_guard<std::mutex> lock(results_mutex);
             run_results.emplace_back(gm_name, std::move(result));
-        });
+        }
+    } else {
+        ThreadPool pool(num_threads);
+        for (const auto& gm_name : gm_names) {
+            pool.enqueue([&, gm_name]() {
+                std::cout << "[DEBUG] Running game: " << gm_name
+                            << " on thread " << std::this_thread::get_id() << "[DEBUG]\n";
+                auto result = runSingleGame(gm_name, map_info, alg1_name, alg2_name, verbose);
+                std::lock_guard<std::mutex> lock(results_mutex);
+                run_results.emplace_back(gm_name, std::move(result));
+            });
+        }
+        pool.wait();
     }
-
-    pool.wait();  // Block until all tasks complete
 
     auto grouped = groupResults(map_info);
 
@@ -131,55 +137,8 @@ void Simulator::runComparative(
         fs::path(algo2_path).filename().string(),
         grouped
     );
+    std::cout << "[Simulator] Comparative results written.\n";
 }
-
-/*
-GameMapInfo Simulator::loadGameMap(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open map file: " + filename);
-    }
-
-    GameMapInfo info;
-    std::string line;
-
-    // Line 1: Map name
-    std::getline(file, info.name);
-
-    // Lines 2–5: Config
-    std::getline(file, line); parseHeaderLine(line, "MaxSteps", info.max_steps);
-    std::getline(file, line); parseHeaderLine(line, "NumShells", info.num_shells);
-    std::getline(file, line); parseHeaderLine(line, "Rows", info.rows);
-    std::getline(file, line); parseHeaderLine(line, "Cols", info.cols);
-    
-    std::cout << "[DEBUG] Before raw_board, Map size: rows = " << info.rows << ", cols = " << info.cols << "\n";
-    std::vector<std::vector<char>> raw_board(info.rows, std::vector<char>(info.cols, ' '));
-    std::cout << "[DEBUG] Parsed map dimensions: rows=" << info.rows << ", cols=" << info.cols << "\n";
-
-    info.player_tank_positions.clear();
-
-    size_t row = 0;
-    while (std::getline(file, line) && row < info.rows) {
-        for (size_t col = 0; col < std::min(line.length(), info.cols); ++col) {
-            char c = line[col];
-            raw_board[row][col] = c;
-
-            if (isdigit(c)) {
-                int player = c - '0';
-                info.player_tank_positions[player].emplace_back(col, row);
-                if (player == 1) { info.x1 = col; info.y1 = row; }
-                if (player == 2) { info.x2 = col; info.y2 = row; }
-            }
-        }
-        row++;
-    }
-
-    // Construct the GameSatelliteView
-    info.view = std::make_unique<UserCommon_322719139_211961057::GameSatelliteView>(raw_board, info.x1, info.y1, 1);
-
-    return info;
-}
-*/
 
 GameMapInfo Simulator::loadGameMap(const std::string& filename) {
     std::ifstream file(filename);
@@ -241,7 +200,6 @@ GameMapInfo Simulator::loadGameMap(const std::string& filename) {
 
     return info;
 }
-
 
 // --------------------
 // Load all GameManagers from folder
@@ -481,9 +439,22 @@ Simulator::GroupedResults Simulator::groupResults(const GameMapInfo& map_info) {
         const std::string msg = formatResultMessage(res);
         const size_t round = res.rounds;
 
-        const std::string map = res.gameState
-            ? serializeMap(*res.gameState, map_info.cols, map_info.rows)
-            : "<no map>";
+     
+        //const std::string map = res.gameState
+        //    ? serializeMap(*res.gameState, map_info.cols, map_info.rows)
+        //    : "<no map>";
+        std::string map;
+        if (auto* gsv = dynamic_cast<const UserCommon_322719139_211961057::GameSatelliteView*>(&*res.gameState)) {
+
+            map = res.gameState
+                ? serializeMap2(*gsv, map_info.cols, map_info.rows)
+                : "<no map>";
+        }
+        else{
+            map = res.gameState
+                ? serializeMap(*res.gameState, map_info.cols, map_info.rows)
+                : "<no map>";
+        }
 
         Key key{msg, round, map};
         grouped[key].push_back(gmName);
@@ -513,7 +484,8 @@ void Simulator::writeComparativeOutput(
     const std::string& algo2Name,
     const GroupedResults& grouped
 ) {
-    //std::string filename = outputFolder + "/comparative_results_" + generateTimestamp() + ".txt";
+    std::cout << "[DEBUG] Writing comparative :\n";
+
     std::string filename = generateFilename("comparative_results", outputFolder);
     std::ofstream out(filename);
     if (!out) {
@@ -526,13 +498,27 @@ void Simulator::writeComparativeOutput(
     out << "algorithm2=" << algo2Name   << "\n";
     out << "\n";
 
+    // Copy grouped results into a vector to sort by group size descending
+    std::vector<std::pair<Simulator::GroupedResults::key_type, std::vector<std::string>>> sorted_groups(
+        grouped.begin(), grouped.end()
+    );
+
+    std::sort(sorted_groups.begin(), sorted_groups.end(),
+              [](const auto& a, const auto& b) {
+                  return a.second.size() > b.second.size(); // biggest group first
+              });
+
     bool firstGroup = true;
-    for (const auto& [key, gmNames] : grouped) {
+    for (const auto& [key, gmNames] : sorted_groups) {
         const auto& [msg, round, map] = key;
+
+        if (msg.empty()) std::cerr << "[WARN] msg is empty\n";
+        if (map.empty()) std::cerr << "[WARN] map is empty\n";
 
         if (!firstGroup) out << "\n";
         firstGroup = false;
 
+        // Write comma-separated list of game managers
         for (size_t i = 0; i < gmNames.size(); ++i) {
             if (i) out << ", ";
             out << gmNames[i];
@@ -544,6 +530,7 @@ void Simulator::writeComparativeOutput(
         out << map << "\n";
     }
 }
+
 
 // Helpers --------------------------------------------------------------
 std::string Simulator::generateFilename(const std::string& prefix, const std::string& folder) const {
@@ -575,12 +562,28 @@ std::string Simulator::formatResultMessage(const GameResult& r) {
     return "Unknown result";
 }
 
+std::string Simulator::serializeMap2(const UserCommon_322719139_211961057::GameSatelliteView &view, size_t width, size_t height)
+{
+    std::cout << "[DEBUG] Serializing map is called \n";
+    std::ostringstream oss;
+    for (size_t y = 0; y < height; ++y) {
+        for (size_t x = 0; x < width; ++x) {
+            oss << view.getObjectAt2(x, y);
+            std::cout << "object is : "<< view.getObjectAt(x, y) << "\n"; // Debug print each character
+        }
+        if (y + 1 < height) oss << "\n"; // newline after each row
+    }
+    return oss.str();
+}
+
 // Serialize final map. Replace with your real implementation.
 std::string Simulator::serializeMap(const SatelliteView& view, size_t width, size_t height) {
+    std::cout << "[DEBUG] Serializing map is called \n";
     std::ostringstream oss;
     for (size_t y = 0; y < height; ++y) {
         for (size_t x = 0; x < width; ++x) {
             oss << view.getObjectAt(x, y);
+            std::cout << "object is : "<< view.getObjectAt(x, y) << "\n"; // Debug print each character
         }
         if (y + 1 < height) oss << "\n"; // newline after each row
     }

@@ -264,7 +264,8 @@ GameResult MyGameManager_322719139_211961057::run(
     this->player1_algo_name_ = name1;
     this->player2_algo_name_ = name2;
 
-    if (verbose_ && output_file_.empty()) {
+    //if (verbose_ && output_file_.empty()) {
+    if (verbose_) {
         std::string sanitized_map = map_name.empty() ? "unknown_map" : std::filesystem::path(map_name).stem().string();
         std::string sanitized_name1 = name1.empty() ? "player1" : std::filesystem::path(name1).stem().string();
         std::string sanitized_name2 = name2.empty() ? "player2" : std::filesystem::path(name2).stem().string();
@@ -272,6 +273,7 @@ GameResult MyGameManager_322719139_211961057::run(
         std::string output_filename = "output_" + sanitized_map + "_" + sanitized_name1 + "_vs_" + sanitized_name2 + ".txt";
         writeOutput(output_filename);
         std::cout << "[DEBUG] GameManager writing output file: " << output_filename << std::endl;
+        output_ok_ = true; 
     }
 
 
@@ -360,20 +362,6 @@ GameResult MyGameManager_322719139_211961057::run(
 
 
 void MyGameManager_322719139_211961057::executeGameLoop() {
-    // Open output files only if verbose is enabled and filenames were set
-    if (verbose_ && !output_file_.empty()) {
-        output_stream_.open(output_file_);
-        game_log_stream_.open(game_log_file_);
-        visualization_stream_.open(visualization_file_);
-
-        output_ok_ = output_stream_.is_open();
-        if (!output_ok_) {
-            std::cerr << "Error: Could not open output file " << output_file_
-                      << " — results will be printed to stdout.\n";
-        }
-    } else {
-        output_ok_ = false;
-    }
 
     initializeBoard();
     updateBoard();
