@@ -7,12 +7,8 @@ namespace UserCommon_322719139_211961057 {
 
 // NEW full-board constructor
 GameSatelliteView::GameSatelliteView(const std::vector<std::vector<char>>& board)
-    : board_(board), requesting_tank_x_(0), requesting_tank_y_(0), requesting_player_index_(0), board_height_(board.size()), board_width_((board.empty()) ? 0 : board[0].size()) {
+    : board_(board), requesting_tank_x_(0), requesting_tank_y_(0), requesting_player_index_(0) {
         std::cout << "---------- GameSatelliteView Constructed by board ----------\n";
-        std::cout << "[DEBUG] GameSatelliteView constructed from board. Dimensions: "
-          << board_width_ << "x" << board_height_ << std::endl;
-
-
     }
 
     
@@ -21,9 +17,7 @@ GameSatelliteView::GameSatelliteView(const std::vector<std::vector<char>>& board
     : board_(board),
       requesting_tank_x_(tank_x),
       requesting_tank_y_(tank_y),
-      requesting_player_index_(player_index),
-      board_height_(board.size()),
-      board_width_(board.empty() ? 0 : board[0].size()) {
+      requesting_player_index_(player_index) {
         std::cout << "---------- GameSatelliteView Constructed by values ----------\n";
     }
 

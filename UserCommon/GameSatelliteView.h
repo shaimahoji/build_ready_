@@ -15,9 +15,6 @@ namespace UserCommon_322719139_211961057 {
         size_t requesting_tank_x_;
         size_t requesting_tank_y_;
         int requesting_player_index_;
-
-        size_t board_height_;
-        size_t board_width_;
         
     public:
         explicit GameSatelliteView(const std::vector<std::vector<char>>& board);
@@ -27,7 +24,6 @@ namespace UserCommon_322719139_211961057 {
         
         char getObjectAt(size_t x, size_t y) const override;
         char getObjectAt2(size_t x, size_t y) const;
-        size_t getBoardWidth() const { return board_width_; };
-        size_t getBoardHeight() const { return board_height_; };
     };
+    
 } // namespace
