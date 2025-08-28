@@ -44,6 +44,7 @@ char GameSatelliteView::getObjectAt2(size_t x, size_t y) const {
     }
     
     // Otherwise, return the object at the position
+    if(board_[y][x] == '$') return '#';
     return board_[y][x];
 }
 
