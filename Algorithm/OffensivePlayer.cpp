@@ -227,11 +227,12 @@ int Player_322719139_211961057_A::getTankIndexFromSatellite(const SatelliteView&
             char object = satellite_view.getObjectAt(x, y);
 
             if(object =='1' || object == '2') {
-                if(player_index_ == 1 && object == '1') {
-                    tank_index += 1;
-                } else if(player_index_ == 2 && object == '2') {
-                    tank_index += 1;
-                }
+                 tank_index += 1;
+                //if(player_index_ == 1 && object == '1') {
+                 //   tank_index += 1;
+                //} else if(player_index_ == 2 && object == '2') {
+                 ///   tank_index += 1;
+                //}
             }else if(object == '%') {
                 return (tank_index);
             }
