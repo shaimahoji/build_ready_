@@ -5,9 +5,19 @@ NAME = simulator_$(ID1)_$(ID2)
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++17 -I../UserCommon -I../common
-LDFLAGS = -ldl -pthread
+LDFLAGS = -ldl -pthread -rdynamic
 
-SRC = $(wildcard *.cpp ../UserCommon/*.cpp)
+# Include all .cpp files in Simulator and UserCommon only once
+SRC = \
+    $(wildcard *.cpp) \
+    $(wildcard ../UserCommon/*.cpp)
+
+# ❌ DO NOT manually add these again — they are already included by wildcard
+# SRC += \
+#     ../Simulator/AlgorithmRegistrar.cpp \
+#     ../Simulator/PlayerRegistration.cpp \
+#     ../Simulator/TankAlgorithmRegistration.cpp
+
 OBJ = $(SRC:.cpp=.o)
 
 TARGET = $(NAME)
@@ -15,7 +25,7 @@ TARGET = $(NAME)
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CXX) -o $@ $(OBJ) $(LDFLAGS)
+	$(CXX) -o $(TARGET) $(OBJ) $(LDFLAGS)
 
 clean:
 	rm -f *.o ../UserCommon/*.o $(TARGET)

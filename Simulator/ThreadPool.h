@@ -10,6 +10,7 @@
 
 class ThreadPool {
 public:
+    ThreadPool(size_t num_threads, size_t max_tasks);
     explicit ThreadPool(size_t num_threads);
     ~ThreadPool();
 

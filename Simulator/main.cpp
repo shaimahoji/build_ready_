@@ -11,13 +11,57 @@
 
 namespace fs = std::filesystem;
 
-void print_usage_and_exit(const std::string& error_msg) {
-    std::cerr << "Error: " << error_msg << "\n";
-    std::cerr << "\nUsage for comparative mode:\n";
-    std::cerr << "./simulator_<ids> -comparative game_map=<file> game_managers_folder=<folder> algorithm1=<file> algorithm2=<file> [num_threads=<int>] [-verbose]\n";
-    std::cerr << "\nUsage for competition mode:\n";
-    std::cerr << "./simulator_<ids> -competition game_maps_folder=<folder> game_manager=<file> algorithms_folder=<folder> [num_threads=<int>] [-verbose]\n";
-    exit(1);
+// Inline file/folder validation
+bool fileExists(const std::string& path) {
+    std::ifstream f(path);
+    return f.good();
+}
+
+bool folderExists(const std::string& path) {
+    return fs::exists(path) && fs::is_directory(path);
+}
+
+bool folderHasFiles(const std::string& path) {
+    if (!folderExists(path)) return false;
+    for (const auto& entry : fs::directory_iterator(path)) {
+        if (fs::is_regular_file(entry)) return true;
+    }
+    return false;
+}
+
+// Improved usage printer — handles all 4 error types cleanly
+int printUsageAndExit(const std::vector<std::string>& errors, const std::string& mode,
+                      const std::string& id1, const std::string& id2) {
+    for (const std::string& err : errors) {
+        std::cerr << "Error: " << err << "\n";
+    }
+
+    std::cerr << "\n--- Usage ---\n";
+    std::string exe = "./simulator_" + id1 + "_" + id2;
+
+    if (mode == "-comparative") {
+        std::cerr << exe << " -comparative \\\n"
+                  << "    game_map=<file> \\\n"
+                  << "    game_managers_folder=<folder> \\\n"
+                  << "    algorithm1=<file> \\\n"
+                  << "    algorithm2=<file> \\\n"
+                  << "    [num_threads=<int>] [-verbose]\n";
+    } else if (mode == "-competition") {
+        std::cerr << exe << " -competition \\\n"
+                  << "    game_maps_folder=<folder> \\\n"
+                  << "    game_manager=<file> \\\n"
+                  << "    algorithms_folder=<folder> \\\n"
+                  << "    [num_threads=<int>] [-verbose]\n";
+    } else {
+        std::cerr << exe << " -comparative [...]\n"
+                  << exe << " -competition [...]\n";
+    }
+
+    std::cerr << "\nNotes:\n"
+              << "  • All required arguments must be provided.\n"
+              << "  • All file/folder paths must be valid and readable.\n";
+
+    return 1;
 }
 
 std::pair<std::string, std::string> parse_argument(const std::string& arg) {
@@ -32,124 +76,115 @@ std::pair<std::string, std::string> parse_argument(const std::string& arg) {
     return {key, value};
 }
 
-bool file_exists(const std::string& path) {
-    return fs::exists(path) && fs::is_regular_file(path);
-}
-
-bool valid_folder_with_files(const std::string& path) {
-    if (!fs::exists(path) || !fs::is_directory(path)) return false;
-    for (const auto& entry : fs::directory_iterator(path)) {
-        if (entry.is_regular_file()) return true;
-    }
-    return false;
-}
-
 int main(int argc, char* argv[]) {
     std::unordered_map<std::string, std::string> args;
     std::unordered_set<std::string> flags;
     std::vector<std::string> unsupported;
     std::string mode;
-
-    std::ofstream diagnostics_file("diagnostics.txt");
-    if (!diagnostics_file.is_open()) {
-        std::cerr << "Warning: Could not open diagnostics.txt for writing.\n";
+    
+    std::string id1 = "ID1";
+    std::string id2 = "";
+    std::string exe_filename = fs::path(argv[0]).filename().string();
+    std::string prefix = "simulator_";
+    if (exe_filename.rfind(prefix, 0) == 0) {
+        std::string id_part = exe_filename.substr(prefix.size());
+        size_t underscore_pos = id_part.find('_');
+        if (underscore_pos != std::string::npos) {
+            id1 = id_part.substr(0, underscore_pos);
+            id2 = id_part.substr(underscore_pos + 1);
+        } else {
+            id1 = id_part;
+        }
     }
 
     for (int i = 1; i < argc; ++i) {
         std::string token = argv[i];
         if (token == "-comparative" || token == "-competition") {
             if (!mode.empty()) {
-                print_usage_and_exit("Multiple modes specified");
+                return printUsageAndExit({"Multiple modes specified"}, mode, id1, id2);
             }
             mode = token;
         } else if (token.find('=') != std::string::npos) {
             auto [key, val] = parse_argument(token);
             if (key.empty() || val.empty()) {
-                print_usage_and_exit("Invalid format for argument: " + token);
+                return printUsageAndExit({"Invalid format for argument: " + token}, mode, id1, id2);
             }
             args[key] = val;
         } else if (token == "-verbose") {
             flags.insert("verbose");
         } else {
-            // Collect unsupported tokens (anything that wasn't a mode, -verbose, or k=v)
-            if (token != "-comparative" && token != "-competition" && token != "-verbose" && token.find('=') == std::string::npos) {
-                unsupported.push_back(token);
-            }
+            unsupported.push_back(token);
         }
     }
 
-    // Emit one usage that lists *all* unsupported args — just after the loop
     if (!unsupported.empty()) {
         std::string msg = "Unsupported command line arguments: ";
         for (size_t i = 0; i < unsupported.size(); ++i) {
             msg += unsupported[i];
             if (i + 1 < unsupported.size()) msg += ", ";
         }
-        print_usage_and_exit(msg);
+        return printUsageAndExit({msg}, mode, id1, id2);
     }
 
     if (mode.empty()) {
-        print_usage_and_exit("Missing mode (-comparative or -competition)");
+        return printUsageAndExit({"Missing mode (-comparative or -competition)"}, "", id1, id2);
     }
 
-    // Validate required args per mode
+    std::vector<std::string> errors;
+
     if (mode == "-comparative") {
         std::vector<std::string> required = {"game_map", "game_managers_folder", "algorithm1", "algorithm2"};
-        std::vector<std::string> missing;
-        for (const auto& key : required) if (!args.count(key)) missing.push_back(key);
-        if (!missing.empty()) {
-            std::string msg = "Missing required arguments: ";
-            for (size_t i = 0; i < missing.size(); ++i) {
-                msg += missing[i];
-                if (i + 1 < missing.size()) msg += ", ";
-            }
-            print_usage_and_exit(msg);
+        for (const auto& key : required) {
+            if (!args.count(key)) errors.push_back("Missing required argument: " + key);
         }
-        if (!file_exists(args["game_map"]))
-            print_usage_and_exit("game_map file does not exist or cannot be opened");
-        if (!valid_folder_with_files(args["game_managers_folder"]))
-            print_usage_and_exit("Invalid or empty game_managers_folder");
-        if (!file_exists(args["algorithm1"]))
-            print_usage_and_exit("algorithm1 file does not exist or cannot be opened");
-        if (!file_exists(args["algorithm2"]))
-            print_usage_and_exit("algorithm2 file does not exist or cannot be opened");
-    } else if (mode == "-competition") {
-        std::vector<std::string> required = {"game_maps_folder", "game_manager", "algorithms_folder"};
-        std::vector<std::string> missing;
-        for (const auto& key : required) if (!args.count(key)) missing.push_back(key);
-        if (!missing.empty()) {
-            std::string msg = "Missing required arguments: ";
-            for (size_t i = 0; i < missing.size(); ++i) {
-                msg += missing[i];
-                if (i + 1 < missing.size()) msg += ", ";
-            }
-            print_usage_and_exit(msg);
-        }
-        if (!valid_folder_with_files(args["game_maps_folder"]))
-            print_usage_and_exit("Invalid or empty game_maps_folder");
-        if (!file_exists(args["game_manager"]))
-            print_usage_and_exit("game_manager file does not exist or cannot be opened");
-        if (!valid_folder_with_files(args["algorithms_folder"]))
-            print_usage_and_exit("Invalid or empty algorithms_folder");
+
+        if (args.count("game_map") && !fileExists(args["game_map"]))
+            errors.push_back("Cannot open game_map file: " + args["game_map"]);
+
+        if (args.count("game_managers_folder") && !folderHasFiles(args["game_managers_folder"]))
+            errors.push_back("Invalid or empty game_managers_folder: " + args["game_managers_folder"]);
+
+        if (args.count("algorithm1") && !fileExists(args["algorithm1"]))
+            errors.push_back("Cannot open algorithm1 file: " + args["algorithm1"]);
+
+        if (args.count("algorithm2") && !fileExists(args["algorithm2"]))
+            errors.push_back("Cannot open algorithm2 file: " + args["algorithm2"]);
     }
 
-    // Optional args
+    else if (mode == "-competition") {
+        std::vector<std::string> required = {"game_maps_folder", "game_manager", "algorithms_folder"};
+        for (const auto& key : required) {
+            if (!args.count(key)) errors.push_back("Missing required argument: " + key);
+        }
+
+        if (args.count("game_maps_folder") && !folderHasFiles(args["game_maps_folder"]))
+            errors.push_back("Invalid or empty game_maps_folder: " + args["game_maps_folder"]);
+
+        if (args.count("game_manager") && !fileExists(args["game_manager"]))
+            errors.push_back("Cannot open game_manager file: " + args["game_manager"]);
+
+        if (args.count("algorithms_folder") && !folderHasFiles(args["algorithms_folder"]))
+            errors.push_back("Invalid or empty algorithms_folder: " + args["algorithms_folder"]);
+    }
+
+    // Optional argument validation
     int num_threads = 1;
-    // Tighten `num_threads` check
     if (args.count("num_threads")) {
         try {
             num_threads = std::stoi(args["num_threads"]);
             if (num_threads < 1) throw std::invalid_argument("num_threads < 1");
         } catch (const std::exception&) {
-            print_usage_and_exit("Invalid value for num_threads: must be integer >= 1");
+            errors.push_back("Invalid value for num_threads: must be integer >= 1");
         }
+    }
+
+    // If anything failed:
+    if (!errors.empty()) {
+        return printUsageAndExit(errors, mode, id1, id2);
     }
 
     bool verbose = flags.count("verbose") > 0;
 
-    // ==========================
-    // Dispatch to actual logic
-    // ==========================
     std::cout << "Running in mode: " << mode << "\n";
     for (const auto& [k, v] : args) {
         std::cout << k << " = " << v << "\n";
@@ -177,4 +212,5 @@ int main(int argc, char* argv[]) {
     }
 
     return 0;
+
 }

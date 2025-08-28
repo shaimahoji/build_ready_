@@ -10,8 +10,7 @@
 #include "../UserCommon/GameSatelliteView.h" // includes SatelliteView.h
 #include "../UserCommon/Direction.h" // defines Direction and DirectionUtil
 
-
-
+#include "../UserCommon/json.hpp"
 
 // -------- Common headers (in correct dependency order) --------
 #include "../common/ActionRequest.h"       // defines ActionRequest for TankAlgorithm
@@ -29,13 +28,12 @@ namespace GameManager_322719139_211961057 {
 
 using Direction = UserCommon_322719139_211961057::Direction;
 
-
 // GameManager_refactored
-class GameManager : public AbstractGameManager {
+class MyGameManager_322719139_211961057 : public AbstractGameManager {
 public:
     // Properly using the factory function types
-    explicit GameManager(bool verbose);
-    ~GameManager();
+    explicit MyGameManager_322719139_211961057(bool verbose);
+    ~MyGameManager_322719139_211961057();
 
     // Previously called run();
     void executeGameLoop();
@@ -60,15 +58,14 @@ public:
     
 
 private:
+    bool verbose_;
 
     //attempt
     std::array<size_t, 2> tank_counts_;  // index 0 = player 1, index 1 = player 2
+    std::string player1_algo_name_;
+    std::string player2_algo_name_;
 
     bool output_ok_ = false;
-    
-    // Factories for creating players and tank algorithms
-    //const PlayerFactory& player_factory_;
-    //const TankAlgorithmFactory& tank_algorithm_factory_;
 
     // Game state
     size_t max_steps_;
@@ -93,10 +90,9 @@ private:
 
 
     // HW3: GameManager should NOT own players
-    //std::vector<std::unique_ptr<Player>> players_;
-    std::vector<Player*> players_;
+    std::vector<void*> players_;
 
-    
+
     // Tank data (authoritative source)
     struct TankData {
         int player_index;
@@ -200,14 +196,13 @@ private:
     void processGameStep();
     bool isGameOver();
     bool isValidCellChar(char c) const;
-    bool CanMoveBackward(GameManager::TankData *tank_data);
-    void updateTankCounters(GameManager::TankData *tank_data);
+    bool CanMoveBackward(MyGameManager_322719139_211961057::TankData *tank_data);
+    void updateTankCounters(MyGameManager_322719139_211961057::TankData *tank_data);
     void addShell(size_t x,size_t y,Direction dir);
     void moveShells();
     bool checkShellCollision(size_t shell_idx, std::vector<size_t>& shells_to_remove);
     void handleBattleInfoRequest(int player_idx, int tank_idx);
     void initializeBoard();
-    static std::string toString2(Direction dir);
 
     /* Helper methods for reading board */
     void parseHeaderLine(const std::string& line, const std::string& key, size_t& out);
@@ -250,5 +245,6 @@ private:
     TankAlgorithmFactory player2_tank_algo_factory);
 };
 
+std::string toString2(Direction dir);
 
 } // namespace

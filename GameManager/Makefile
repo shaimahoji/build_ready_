@@ -4,12 +4,21 @@ ID2 = 211961057
 NAME = GameManager_$(ID1)_$(ID2)
 
 CXX = g++
-CXXFLAGS = -Wall -std=c++17 -fPIC -I../UserCommon -I../common -I.. #must delete last one and figure out what to do with the visualizer
+CXXFLAGS = -Wall -std=c++17 -fPIC -I../UserCommon -I../common
 
-SRC = $(wildcard *.cpp ../UserCommon/*.cpp)
+# ✅ Only include GameManager and your own shared code
+SRC = \
+  GameManager.cpp \
+  ../UserCommon/GameSatelliteView.cpp \
+  ../UserCommon/Direction.cpp \
+  ../UserCommon/OffensiveBattleInfo.cpp
+
+# ❌ DO NOT include:
+# ../Simulator/GameManagerRegistration.cpp
+# ../Simulator/GameManagerRegistrar.cpp
+
 OBJ = $(SRC:.cpp=.o)
-
-TARGET = lib$(NAME).so
+TARGET = $(NAME).so
 
 all: $(TARGET)
 

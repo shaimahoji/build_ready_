@@ -22,7 +22,7 @@ namespace Algorithm_322719139_211961057 {
 using Direction = UserCommon_322719139_211961057::Direction;
 using OffensiveBattleInfo = UserCommon_322719139_211961057::OffensiveBattleInfo;
 
-class OffensiveTankAlgorithm : public TankAlgorithm {
+class TankAlgorithm_322719139_211961057_A : public TankAlgorithm {
 private:
     int player_index_;
     int tank_index_;
@@ -75,10 +75,10 @@ private:
     OffensiveBattleInfo last_offensive_info_;
     
 public:
-    OffensiveTankAlgorithm(int player_index, int tank_index);
-    ~OffensiveTankAlgorithm() override = default;
+    TankAlgorithm_322719139_211961057_A(int player_index, int tank_index);
+    ~TankAlgorithm_322719139_211961057_A() override = default;
 
-    OffensiveTankAlgorithm(const OffensiveTankAlgorithm& other);
+    TankAlgorithm_322719139_211961057_A(const TankAlgorithm_322719139_211961057_A& other);
 
     ActionRequest getAction() override;
 
