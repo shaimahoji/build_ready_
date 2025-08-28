@@ -55,6 +55,39 @@ It supports both `-comparative` and `-competition` modes with robust validation 
   * **Comparative Mode:** Runs all GameManagers in folder with a pair of algorithms on one map.
   * **Competition Mode:** Runs a full round-robin tournament across multiple maps and algorithms.
 
+🔹 Simulator Implementation Details
+* Dynamic .so Loading
+   * GameManagers and Algorithms are loaded at runtime via dlopen.
+   * Handles are stored and later released via dlclose in the destructor.
+   * Automatic registration ensures factories are available immediately after loading.
+*Map Parsing
+   * Reads a structured map file with a header (MaxSteps, NumShells, Rows, Cols) and the game    board.
+   * Tanks are automatically detected and stored in player_tank_positions.
+   * Missing or invalid fields are handled gracefully, returning std::nullopt without crashing.
+* Comparative Mode Execution
+   * Retrieves all registered GameManagers and algorithms.
+   * Supports single-threaded or multithreaded execution via a ThreadPool.
+   * Each game is run independently, and results are grouped by outcome.
+   * Outputs a detailed comparative results file with map serialization.
+* Competition Mode Execution
+   * Loads multiple algorithms and maps.
+   * Deduplicates matchups to avoid redundant games.
+   * ThreadPool parallelization handles multiple games concurrently.
+   * Scores are automatically computed:
+      * 3 points for a win
+      * 1 point per player in a tie
+  * Results are sorted and written to a competition output file.
+* Thread-Safe Operations
+  * std::mutex ensures run_results and scores are updated safely in parallel.
+  * Each game instance runs in isolation to avoid shared state conflicts.
+* Utilities
+  * serializeMap and serializeMap2 convert the board to string format for logging.
+  * generateTimestamp provides unique filenames for output.
+  * Detailed verbose logging available for debugging.
+* Error Handling & Robustness
+  * Missing or invalid files, invalid .so libraries, or failed registrations are handled gracefully.
+  * Simulator avoids crashes even with malformed input, missing maps, or insufficient algorithms.
+
 ### 📚 Command Line Parsing
 
 * Implemented with detailed validation
@@ -175,4 +208,5 @@ Each part uses a unique namespace based on our IDs:
 
 * No third-party libraries used beyond `nlohmann::json` (standard-approved)
 * `Simulator` gracefully handles crash-free logic but does not recover from .so file crashes (as permitted)
+
 * `GameManager` includes both log files and visualization JSON (per round)
