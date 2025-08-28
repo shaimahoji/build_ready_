@@ -115,7 +115,9 @@ void Simulator::runComparative(
             run_results.emplace_back(gm_name, std::move(result));
         }
     } else {
-        ThreadPool pool(num_threads);
+        size_t max_tasks = gm_names.size(); // or however you store them
+        ThreadPool pool(num_threads, max_tasks);    // new
+        //ThreadPool pool(num_threads);
         for (const auto& gm_name : gm_names) {
             pool.enqueue([&, gm_name]() {
                 std::cout << "[DEBUG] Running game: " << gm_name
