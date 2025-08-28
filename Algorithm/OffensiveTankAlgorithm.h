@@ -82,7 +82,9 @@ public:
 
     ActionRequest getAction() override;
 
-    int getTankIndex() const { return tank_index_; }
+    int getTankIndex() const { 
+        std::cout << "getTankIndex called, returning: " << tank_index_ << " for player: " << player_index_ << "\n";
+        return tank_index_; }
 
     void updateBattleInfo(BattleInfo& info) override;
     
