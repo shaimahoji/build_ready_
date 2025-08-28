@@ -1,6 +1,18 @@
 // ThreadPool.cpp
 #include "ThreadPool.h"
 
+ThreadPool::ThreadPool(size_t num_threads, size_t max_tasks)
+    : stop(false), active_tasks(0)
+{
+    // Clamp to avoid spawning more threads than useful
+    if (max_tasks > 0)
+        num_threads = std::min(num_threads, max_tasks);
+
+    for (size_t i = 0; i < num_threads; ++i) {
+        workers.emplace_back(&ThreadPool::worker, this);
+    }
+}
+
 ThreadPool::ThreadPool(size_t num_threads) : stop(false), active_tasks(0) {
     for (size_t i = 0; i < num_threads; ++i) {
         workers.emplace_back(&ThreadPool::worker, this);
