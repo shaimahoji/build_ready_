@@ -273,13 +273,13 @@ void Simulator::loadTwoAlgorithms(
         std::string name = fs::path(path).stem().string(); // removes .so
         std::cout << "[DEBUG] Creating AlgorithmFactoryEntry for: " << name << "\n";
         auto& registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
-        registrar.createAlgorithmFactoryEntry(name); // 🔥 REQUIRED
+        registrar.createAlgorithmFactoryEntry(name); // REQUIRED
 
-        void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL); // 🔥 REQUIRED FLAGS
+        void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL); // REQUIRED FLAGS
         if (!handle) {
             std::cerr << "[Error] Failed to load Algorithm: " << path << "\n";
             std::cerr << dlerror() << "\n";
-            registrar.removeLast(); // 🔄 roll back placeholder
+            registrar.removeLast(); // roll back placeholder
             return nullptr;
         }
 
@@ -648,123 +648,101 @@ void Simulator::runCompetitive(
         return;
     }
 
-    // 4. Scoreboard
+    // 4. Scoreboard and Algorithm List
     std::map<std::string, int> scores;
     auto& algo_registrar = AlgorithmRegistrar::getAlgorithmRegistrar();
     if (algo_registrar.count() == 0) {
         throw std::runtime_error("[Simulator] No tank algorithms registered.");
     }
 
-    for (const auto& entry : algo_registrar) {
-        scores[entry.name()] = 0;
-    }
-
-    ThreadPool pool(num_threads >= 1 ? num_threads : 1);
-    std::mutex score_mutex;
-
+    // Define AlgoEntry type early
     using AlgoEntry = std::remove_reference_t<decltype(*algo_registrar.begin())>;
     std::vector<const AlgoEntry*> algo_entries;
     for (const auto& entry : algo_registrar) {
+        scores[entry.name()] = 0;
         algo_entries.push_back(&entry);
     }
 
-    // Making it deterministic
+    // Sort algorithms deterministically
     std::sort(algo_entries.begin(), algo_entries.end(),
         [](const AlgoEntry* a, const AlgoEntry* b) {
             return std::filesystem::path(a->name()).filename().string() <
-                std::filesystem::path(b->name()).filename().string();
+                   std::filesystem::path(b->name()).filename().string();
         });
 
-
-    std::set<std::tuple<std::string, std::string, std::string>> executed_pairs;
-    //static std::mutex dedup_mutex;
-    std::mutex dedup_mutex;
+    // 5. Build Task List (deduplicated matchups)
+    std::vector<std::tuple<const AlgoEntry*, const AlgoEntry*, const GameMapInfo*>> tasks;
+    std::set<std::tuple<std::string, std::string, std::string>> executed_keys;
 
     for (size_t k = 0; k < K; ++k) {
-        const GameMapInfo* map_ptr = &maps[k];  // will capture this pointer
+        const GameMapInfo* map_ptr = &maps[k];
 
-        //for (size_t i = 0; i < N; ++i) {
-            //for (size_t j = i + 1; j < N; ++j) {
         for (size_t i = 0; i < N; ++i) {
-            size_t j = (i + 1 + (k % (N - 1))) % N; // Pairing Formula set by the assignment
+            size_t j = (i + 1 + (k % (N - 1))) % N;
+            if (i == j) continue;
 
-            if (i == j) continue;  // Safety check, though should never happen
+            std::string a1 = algo_entries[i]->name();
+            std::string a2 = algo_entries[j]->name();
+            auto key = std::make_tuple(map_ptr->name, std::min(a1, a2), std::max(a1, a2));
 
-            const AlgoEntry* entry1_ptr = algo_entries[i];
-            const AlgoEntry* entry2_ptr = algo_entries[j];
-
-            std::string a1 = entry1_ptr->name();
-            std::string a2 = entry2_ptr->name();
-            std::string map_name = map_ptr->name;
-
-            auto ordered_pair = std::minmax(a1, a2);
-            auto key = std::make_tuple(map_name, ordered_pair.first, ordered_pair.second);
-
-            {
-                std::lock_guard<std::mutex> lock(dedup_mutex);
-                std::cout << "[DEBUG] Dedup key check for: " << map_name
-                        << " (" << ordered_pair.first << " vs " << ordered_pair.second << ")\n";
-
-                if (executed_pairs.count(key)) {
-                    std::cout << "[DEBUG] Skipping duplicate for: " << map_name << "\n";
-                    continue;
-                }
-
-                executed_pairs.insert(key);
-            }
-
-            pool.enqueue([&, entry1_ptr, entry2_ptr, map_ptr, a1, a2]() {
-                const GameMapInfo& map_info = *map_ptr;  // safely dereferenced inside thread
-
-                std::cout << "[DEBUG] Running game: " << map_info.name
-                        << " | " << a1 << " vs " << a2 << std::endl;
-
-                auto gm_instance = gm_factory(verbose);
-
-                //adan
-                auto* concrete_view = dynamic_cast<UserCommon_322719139_211961057::GameSatelliteView*>(map_info.view.get());
-                if (!concrete_view) {
-                    throw std::runtime_error("Failed to cast SatelliteView");
-                }
-
-                auto board_width = concrete_view->getBoardWidth();
-                auto board_height = concrete_view->getBoardHeight();
-
-                auto player1 = entry1_ptr->createPlayer(0, board_width, board_height, map_info.max_steps, map_info.num_shells);
-                auto player2 = entry2_ptr->createPlayer(1, board_width, board_height, map_info.max_steps, map_info.num_shells);
-
-                //auto player1 = entry1_ptr->createPlayer(0, map_info.x1, map_info.y1, map_info.max_steps, map_info.num_shells);
-                //auto player2 = entry2_ptr->createPlayer(1, map_info.x2, map_info.y2, map_info.max_steps, map_info.num_shells);
-
-
-
-                GameResult result = gm_instance->run(
-                    map_info.cols, map_info.rows,
-                    *map_info.view, map_info.name,
-                    map_info.max_steps, map_info.num_shells,
-                    *player1, a1,
-                    *player2, a2,
-                    [=](int player, int tank) { return entry1_ptr->createTankAlgorithm(player, tank); },
-                    [=](int player, int tank) { return entry2_ptr->createTankAlgorithm(player, tank); }
-                );
-
-                std::lock_guard<std::mutex> lock(score_mutex);
-                if (result.winner == 1) {
-                    scores[a1] += 3;
-                } else if (result.winner == 2) {
-                    scores[a2] += 3;
-                } else {
-                    scores[a1] += 1;
-                    scores[a2] += 1;
-                }
-            });
-            //}
+            if (executed_keys.count(key)) continue;
+            executed_keys.insert(key);
+            tasks.emplace_back(algo_entries[i], algo_entries[j], map_ptr);
         }
+    }
+
+    // 6. Create ThreadPool with capped threads
+    int capped_threads = std::min(static_cast<int>(tasks.size()), static_cast<int>(num_threads));
+    ThreadPool pool(capped_threads);
+    std::cout << "[INFO] Allocating " << capped_threads << " threads for " << tasks.size() << " games.\n";
+
+    std::mutex score_mutex;
+
+    // 7. Enqueue tasks
+    for (const auto& [entry1_ptr, entry2_ptr, map_ptr] : tasks) {
+        const std::string a1 = entry1_ptr->name();
+        const std::string a2 = entry2_ptr->name();
+        const GameMapInfo& map_info = *map_ptr;
+
+        pool.enqueue([&, entry1_ptr, entry2_ptr, a1, a2]() {
+            std::cout << "[DEBUG] Thread " << std::this_thread::get_id()
+                      << " running " << map_info.name << ": " << a1 << " vs " << a2 << "\n";
+
+            auto gm_instance = gm_factory(verbose);
+
+            auto* concrete_view = dynamic_cast<UserCommon_322719139_211961057::GameSatelliteView*>(map_info.view.get());
+            if (!concrete_view) throw std::runtime_error("Failed to cast SatelliteView");
+
+            auto player1 = entry1_ptr->createPlayer(0, concrete_view->getBoardWidth(), concrete_view->getBoardHeight(),
+                                                    map_info.max_steps, map_info.num_shells);
+            auto player2 = entry2_ptr->createPlayer(1, concrete_view->getBoardWidth(), concrete_view->getBoardHeight(),
+                                                    map_info.max_steps, map_info.num_shells);
+
+            GameResult result = gm_instance->run(
+                map_info.cols, map_info.rows,
+                *map_info.view, map_info.name,
+                map_info.max_steps, map_info.num_shells,
+                *player1, a1,
+                *player2, a2,
+                [=](int player, int tank) { return entry1_ptr->createTankAlgorithm(player, tank); },
+                [=](int player, int tank) { return entry2_ptr->createTankAlgorithm(player, tank); }
+            );
+
+            std::lock_guard<std::mutex> lock(score_mutex);
+            if (result.winner == 1) {
+                scores[a1] += 3;
+            } else if (result.winner == 2) {
+                scores[a2] += 3;
+            } else {
+                scores[a1] += 1;
+                scores[a2] += 1;
+            }
+        });
     }
 
     pool.wait();
 
-    // 6. Sort and write results
+    // 8. Sort and write results
     std::vector<std::pair<std::string, int>> ranking(scores.begin(), scores.end());
     std::sort(ranking.begin(), ranking.end(), [](auto& a, auto& b) { return a.second > b.second; });
 
@@ -784,37 +762,6 @@ void Simulator::runCompetitive(
     }
 }
 
-/*
-std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_folder) {
-
-    std::vector<GameMapInfo> maps;
-
-    try {
-        if (!fs::exists(game_maps_folder) || !fs::is_directory(game_maps_folder)) {
-            throw std::runtime_error("Invalid maps folder: " + game_maps_folder);
-        }
-
-        for (const auto& entry : fs::directory_iterator(game_maps_folder)) {
-            if (entry.is_regular_file()) {
-                std::string filename = entry.path().string();
-
-                try {
-                    GameMapInfo map_info = loadGameMap(filename);
-                    maps.push_back(std::move(map_info));
-                } catch (const std::exception& e) {
-                    std::cerr << "Skipping map file " << filename
-                              << " due to error: " << e.what() << "\n";
-                }
-            }
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error loading maps from folder " << game_maps_folder
-                  << ": " << e.what() << "\n";
-    }
-
-    return maps;
-}
-*/
 
 std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_folder) {
     std::vector<GameMapInfo> maps;
@@ -851,50 +798,6 @@ std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_fo
 
     return maps;
 }
-
-/*
-void Simulator::loadAlgorithms(const std::string& algorithms_folder, bool verbose) {
-    // Clear previous handles
-    algo_handles.clear();
-
-    namespace fs = std::filesystem;
-    DynamicLoader dynamic_loader;
-
-    if (!fs::exists(algorithms_folder) || !fs::is_directory(algorithms_folder)) {
-        throw std::runtime_error("[Simulator] Invalid algorithms folder: " + algorithms_folder);
-    }
-
-    for (const auto& entry : fs::directory_iterator(algorithms_folder)) {
-        if (!entry.is_regular_file()) continue;
-
-        const std::string path = entry.path().string();
-        const std::string filename = entry.path().filename().string();
-
-        if (path.size() < 3 || path.substr(path.size() - 3) != ".so") {
-            if (verbose)
-                std::cerr << "[Simulator] Skipping non-.so file: " << path << "\n";
-            continue;
-        }
-
-        if (dynamic_loader.loadAlgorithmLibrary(path, filename, std::cerr)) {
-            algo_handles.push_back(dlopen(path.c_str(), RTLD_LAZY));  // Only for destructor cleanup
-            if (verbose)
-                std::cout << "[Simulator] Successfully registered algorithm: " << filename << "\n";
-        } else {
-            std::cerr << "[Simulator] Failed to register algorithm: " << filename << "\n";
-        }
-    }
-
-    if (algo_handles.size() < 2) {
-        throw std::runtime_error("[Simulator] Not enough valid algorithms found in folder. Need at least 2.");
-    }
-
-    if (verbose) {
-        std::cout << "[Simulator] Total algorithms registered: "
-                  << AlgorithmRegistrar::getAlgorithmRegistrar().count() << "\n";
-    }
-}
-*/
 
 void Simulator::loadAlgorithms(const std::string& algorithms_folder, bool verbose) {
     algo_handles.clear();

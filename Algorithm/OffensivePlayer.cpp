@@ -210,7 +210,7 @@ int Player_322719139_211961057_A::getTankIndexFromSatellite(const SatelliteView&
 
     for (size_t y = 0; y < board_height_; ++y) {
         for (size_t x = 0; x < board_width_; ++x) {
-            std::cout << "within inner for loop\n";
+            //std::cout << "within inner for loop\n";
             char object = satellite_view.getObjectAt(x, y);
 
             if(object =='1' || object == '2') {
@@ -1138,10 +1138,6 @@ PathResult Player_322719139_211961057_A::findPath(
 
     return result;
 }
-
-
-//REGISTER_PLAYER(Player_322719139_211961057_A); //it looks like its wrong, according to pdf, check and if so, correct one below:
-//REGISTER_PLAYER(Player_322719139_211961057_A);
 
 } // namespace Algorithm_322719139_211961057
 

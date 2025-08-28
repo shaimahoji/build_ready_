@@ -1,5 +1,5 @@
 Valid-MixedSize
-MaxSteps = 1000
+MaxSteps = 10
 NumShells=20
 Rows = 4
 Cols = 8
