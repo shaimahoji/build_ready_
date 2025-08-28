@@ -8,6 +8,7 @@
 #include <mutex>
 #include <set>
 #include <unordered_set>
+#include <optional>
 
 #include "../common/BattleInfo.h"
 #include "../common/ActionRequest.h"
@@ -46,7 +47,8 @@ private:
     std::vector<std::pair<std::string, GameResult>> run_results;
 
     //internal helper
-    GameMapInfo loadGameMap(const std::string& filename);
+    //GameMapInfo loadGameMap(const std::string& filename);
+    std::optional<GameMapInfo> loadGameMap(const std::string& filename);
     std::string generateFilename(const std::string& prefix, const std::string& folder) const;
 
 public:

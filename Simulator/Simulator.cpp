@@ -1,5 +1,6 @@
 // Simulator.cpp
 #include "Simulator.h"
+
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -19,9 +20,9 @@
 
 namespace fs = std::filesystem;
 
-static void parseHeaderLine(const std::string& line, const std::string& key, size_t& output) {
+static bool parseHeaderLine(const std::string& line, const std::string& key, size_t& output) {
     auto pos = line.find('=');
-    if (pos == std::string::npos) return;
+    if (pos == std::string::npos) return false;
 
     std::string k = line.substr(0, pos);
     std::string v = line.substr(pos + 1);
@@ -33,10 +34,14 @@ static void parseHeaderLine(const std::string& line, const std::string& key, siz
     if (k == key) {
         try {
             output = std::stoul(v);
+            return true;
         } catch (...) {
             std::cerr << "[Warning] Failed to parse numeric value: " << v << " in line: " << line << "\n";
+            return false;
         }
     }
+
+    return false;
 }
 
 // --------------------
@@ -62,9 +67,18 @@ void Simulator::runComparative(
     int num_threads,
     bool verbose
 ) {
+    std::cout << "---------- runComparative ----------" << "\n";
+
     // 1. Load managers and algorithms
     std::cout << "[DEBUG] Loading game map...\n";
-    GameMapInfo map_info = loadGameMap(game_map_path);
+    //GameMapInfo map_info = loadGameMap(game_map_path);
+    auto maybe_map = loadGameMap(game_map_path);
+    if (!maybe_map) {
+        std::cerr << "[FATAL] Aborting due to invalid map: " << game_map_path << "\n";
+        return; // gracefully ends main
+    }
+
+    GameMapInfo map_info = std::move(*maybe_map);
 
     std::cout << "[DEBUG] Loading GameManagers...\n";
     loadGameManagers(gameManagers_folder, verbose);
@@ -139,8 +153,8 @@ void Simulator::runComparative(
     );
     std::cout << "[Simulator] Comparative results written.\n";
 }
-
-GameMapInfo Simulator::loadGameMap(const std::string& filename) {
+//adan
+std::optional<GameMapInfo> Simulator::loadGameMap(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         throw std::runtime_error("Could not open map file: " + filename);
@@ -153,20 +167,25 @@ GameMapInfo Simulator::loadGameMap(const std::string& filename) {
     std::getline(file, info.name);
     std::cout << "[DEBUG] Map name: " << info.name << "\n";
 
+    bool found_rows = false, found_cols = false, found_max_steps = false;
+
     // Lines 2–5: Config
-    std::getline(file, line); parseHeaderLine(line, "MaxSteps", info.max_steps);
+    std::getline(file, line); found_max_steps = parseHeaderLine(line, "MaxSteps", info.max_steps);
     std::getline(file, line); parseHeaderLine(line, "NumShells", info.num_shells);
-    std::getline(file, line); parseHeaderLine(line, "Rows", info.rows);
-    std::getline(file, line); parseHeaderLine(line, "Cols", info.cols);
+    std::getline(file, line); found_rows = parseHeaderLine(line, "Rows", info.rows);
+    std::getline(file, line); found_cols = parseHeaderLine(line, "Cols", info.cols);
+    
+    // "missing" or "explicitly set to zero" (max_steps=0 we can consider it a tie, not invalid)
+    if (!found_rows || !found_cols || !found_max_steps || info.rows == 0 || info.cols == 0) {
+        std::cerr << "[ERROR] Missing (or invalid) map config fields (MaxSteps / Rows / Cols) in: " << filename << "\n";
+        return std::nullopt;
+    }
 
     std::cout << "[DEBUG] Parsed config: MaxSteps=" << info.max_steps
               << ", NumShells=" << info.num_shells
               << ", Rows=" << info.rows
               << ", Cols=" << info.cols << "\n";
 
-    if (info.rows == 0 || info.cols == 0) {
-        std::cerr << "[ERROR] Invalid board dimensions (0 rows or cols)\n";
-    }
 
     std::vector<std::vector<char>> raw_board(info.rows, std::vector<char>(info.cols, ' '));
 
@@ -369,11 +388,6 @@ GameResult Simulator::runSingleGame(const std::string &gmName, const GameMapInfo
         return GameResult{};
     }
 
-    // 4. Load map from file
-    //auto mapInfo = loadGameMap(gameMapPath);
-    //const GameMapInfo& mapInfo = map_info_ref;
-
-
     // Use AlgorithmRegistrar instead of PlayerRegistrar
     auto& algoRegistrar = AlgorithmRegistrar::getAlgorithmRegistrar();
 
@@ -406,8 +420,8 @@ GameResult Simulator::runSingleGame(const std::string &gmName, const GameMapInfo
         throw std::runtime_error("Expected concrete GameSatelliteView for Player construction");
     }
 
-    std::unique_ptr<Player> player1 = player1Factory(0, concrete_view->getBoardWidth(), concrete_view->getBoardHeight(), mapInfo.max_steps, mapInfo.num_shells);
-    std::unique_ptr<Player> player2 = player2Factory(1, concrete_view->getBoardWidth(), concrete_view->getBoardHeight(), mapInfo.max_steps, mapInfo.num_shells);
+    std::unique_ptr<Player> player1 = player1Factory(0, mapInfo.cols, mapInfo.rows, mapInfo.max_steps, mapInfo.num_shells);
+    std::unique_ptr<Player> player2 = player2Factory(1, mapInfo.cols, mapInfo.rows, mapInfo.max_steps, mapInfo.num_shells);
 
     //std::unique_ptr<Player> player1 = player1Factory(0, mapInfo.x1, mapInfo.y1, mapInfo.max_steps, mapInfo.num_shells);
     //std::unique_ptr<Player> player2 = player2Factory(1, mapInfo.x2, mapInfo.y2, mapInfo.max_steps, mapInfo.num_shells);
@@ -711,11 +725,12 @@ void Simulator::runCompetitive(
             auto gm_instance = gm_factory(verbose);
 
             auto* concrete_view = dynamic_cast<UserCommon_322719139_211961057::GameSatelliteView*>(map_info.view.get());
+
             if (!concrete_view) throw std::runtime_error("Failed to cast SatelliteView");
 
-            auto player1 = entry1_ptr->createPlayer(0, concrete_view->getBoardWidth(), concrete_view->getBoardHeight(),
+            auto player1 = entry1_ptr->createPlayer(0, map_info.cols, map_info.rows,
                                                     map_info.max_steps, map_info.num_shells);
-            auto player2 = entry2_ptr->createPlayer(1, concrete_view->getBoardWidth(), concrete_view->getBoardHeight(),
+            auto player2 = entry2_ptr->createPlayer(1, map_info.cols, map_info.rows,
                                                     map_info.max_steps, map_info.num_shells);
 
             GameResult result = gm_instance->run(
@@ -775,21 +790,20 @@ std::vector<GameMapInfo> Simulator::loadGameMaps(const std::string& game_maps_fo
             if (entry.is_regular_file()) {
                 std::string filename = entry.path().string();
 
-                try {
-                    GameMapInfo map_info = loadGameMap(filename);
-
-                    if (!map_info.view) {
-                        std::cerr << "[WARNING] Skipping map " << filename
-                                  << ": SatelliteView is null\n";
-                        continue;
-                    }
-
-                    maps.push_back(std::move(map_info));
-                } catch (const std::exception& e) {
-                    std::cerr << "Skipping map file " << filename
-                              << " due to error: " << e.what() << "\n";
+                auto maybe_map = loadGameMap(filename);
+                if (!maybe_map) {
+                    std::cerr << "[WARNING] Skipping map file " << filename << " due to invalid or missing config fields.\n";
+                    continue;
                 }
+
+                if (!maybe_map->view) {
+                    std::cerr << "[WARNING] Skipping map file " << filename << " due to missing SatelliteView.\n";
+                    continue;
+                }
+
+                maps.push_back(std::move(*maybe_map));
             }
+
         }
     } catch (const std::exception& e) {
         std::cerr << "Error loading maps from folder " << game_maps_folder
