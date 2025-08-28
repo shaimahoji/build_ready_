@@ -64,19 +64,32 @@ void Player_322719139_211961057_A::updateTankWithBattleInfo(TankAlgorithm& tank,
     std::cout << "---------- updateTankWithBattleInfo ---------- \n";
     std::cout << "Type of tank: " << typeid(tank).name() << "\n";
     std::cout << "Type of satellite_view: " << typeid(satellite_view).name() << "\n";
+    
+    int tank_index = -1;
 
-    int tank_index = getTankIndexFromSatellite(satellite_view);
-    if (tank_index < 0) {
-        std::cerr << "[Error] Failed to find tank index from satellite view\n";
+    auto* offensive_tank = dynamic_cast<TankAlgorithm_322719139_211961057_A*>(&tank);
+    if (!offensive_tank) {
+        std::cerr << "[Error] Invalid tank type\n";
         return;
+    }
+    
+    tank_index = offensive_tank->getTankIndex() - 1;
+    
+
+    //else tank_index = getTankIndexFromSatellite(satellite_view);
+    if (tank_index < 0){
+        std::cerr << "[Error] Tank index not found\n";
+        return;    
     }
 
     std::cout << "[DEBUG] Tank index: " << tank_index << "\n";
 
-    if (tank_index < 0 || tank_index >= static_cast<int>(my_tanks_.size())) {
-        std::cerr << "[Error] Tank index out of range\n";
-        return;
+    if (tank_index >= static_cast<int>(my_tanks_.size())) {
+        Direction initialDir = (player_index_ == 1) ? Direction::LEFT : Direction::RIGHT;
+        my_tanks_.resize(tank_index + 1, TankInfo(0, 0, initialDir, 0));
+        //return;
     }
+
 
     updateBoardInfo(satellite_view, tank_index);
     updateTargetPriorities();
@@ -171,6 +184,7 @@ void Player_322719139_211961057_A::updateBoardInfo(SatelliteView& satellite_view
                 if (tank_index >= 0 && tank_index < static_cast<int>(my_tanks_.size())) {
                     my_tanks_[tank_index].x = x;
                     my_tanks_[tank_index].y = y;
+                    my_tanks_[tank_index].empty = false;
                 }
             }
             else if (object == std::to_string(player_index_)[0]) {
@@ -204,17 +218,20 @@ void Player_322719139_211961057_A::updateBoardInfo(SatelliteView& satellite_view
 }
 
 int Player_322719139_211961057_A::getTankIndexFromSatellite(const SatelliteView& satellite_view) {
-    int tank_index = 0;
+    int tank_index = -1;
     std::cout << "---------- getTankIndexFromSatellite ---------- \n";
     std::cout << "Board dimensions: " << board_width_ << "x" << board_height_ << "\n";
 
     for (size_t y = 0; y < board_height_; ++y) {
         for (size_t x = 0; x < board_width_; ++x) {
-            //std::cout << "within inner for loop\n";
             char object = satellite_view.getObjectAt(x, y);
 
             if(object =='1' || object == '2') {
-                tank_index += 1;
+                if(player_index_ == 1 && object == '1') {
+                    tank_index += 1;
+                } else if(player_index_ == 2 && object == '2') {
+                    tank_index += 1;
+                }
             }else if(object == '%') {
                 return (tank_index);
             }

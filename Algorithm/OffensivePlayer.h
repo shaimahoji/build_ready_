@@ -43,6 +43,7 @@ private:
     size_t board_width_;
     size_t board_height_;
 
+
     std::vector<std::vector<char>> last_board_state_;
     
     // Game step tracking
@@ -58,6 +59,8 @@ private:
         int cooldown_timer;
         bool is_alive;
         size_t last_info_step;  // Last step when this tank got info
+        bool empty = true;
+
         
         TankInfo(size_t x, size_t y, Direction direction, size_t shells)
             : x(x), y(y), direction(direction), remaining_shells(shells),
@@ -74,6 +77,7 @@ private:
     
     // Enemy tanks
     std::vector<TankInfo> enemy_tanks_;
+    bool initilized = false;
     
     // Shell tracking
     struct ShellInfo {

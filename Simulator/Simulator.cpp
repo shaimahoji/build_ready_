@@ -564,12 +564,12 @@ std::string Simulator::formatResultMessage(const GameResult& r) {
 
 std::string Simulator::serializeMap2(const UserCommon_322719139_211961057::GameSatelliteView &view, size_t width, size_t height)
 {
-    std::cout << "[DEBUG] Serializing map is called \n";
+    //std::cout << "[DEBUG] Serializing map is called \n";
     std::ostringstream oss;
     for (size_t y = 0; y < height; ++y) {
         for (size_t x = 0; x < width; ++x) {
             oss << view.getObjectAt2(x, y);
-            std::cout << "object is : "<< view.getObjectAt(x, y) << "\n"; // Debug print each character
+            //std::cout << "object is : "<< view.getObjectAt(x, y) << "\n"; // Debug print each character
         }
         if (y + 1 < height) oss << "\n"; // newline after each row
     }
@@ -578,12 +578,12 @@ std::string Simulator::serializeMap2(const UserCommon_322719139_211961057::GameS
 
 // Serialize final map. Replace with your real implementation.
 std::string Simulator::serializeMap(const SatelliteView& view, size_t width, size_t height) {
-    std::cout << "[DEBUG] Serializing map is called \n";
+    //std::cout << "[DEBUG] Serializing map is called \n";
     std::ostringstream oss;
     for (size_t y = 0; y < height; ++y) {
         for (size_t x = 0; x < width; ++x) {
             oss << view.getObjectAt(x, y);
-            std::cout << "object is : "<< view.getObjectAt(x, y) << "\n"; // Debug print each character
+            //std::cout << "object is : "<< view.getObjectAt(x, y) << "\n"; // Debug print each character
         }
         if (y + 1 < height) oss << "\n"; // newline after each row
     }
