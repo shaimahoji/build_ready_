@@ -39,7 +39,7 @@ TEST(ComparativeRun_MultiMap, GameManagerWithTwoAlgorithms) {
                               "game_managers_folder=" + gm_folder + " "
                               "algorithm1=" + algo1 + " "
                               "algorithm2=" + algo2 + " "
-                              "num_threads=1 -verbose";
+                              "num_threads=1 ";
 
         std::cout << "[DEBUG] Command: " << command << std::endl;
 

@@ -1,0 +1,7 @@
+game_maps_folder=/home/shaimaa/files/29_8_13_41/maps
+game_manager=/home/shaimaa/files/29_8_13_41/game_managers_folder/GameManager_322719139_211961057.so
+
+Algorithm_322868852_340849710 56
+Algorithm_322719139_211961057 49
+Algorithm_207174533_321321945 39
+Algorithm_212535058_324022904 17
