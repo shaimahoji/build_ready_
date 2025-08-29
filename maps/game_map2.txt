@@ -1,0 +1,10 @@
+yoyoyo
+MaxSteps = 500
+NumShells=20
+Rows = 4
+Cols = 8
+1   1  2
+# @#@ #   
+###1
+2  12
+#######
