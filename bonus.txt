@@ -12,15 +12,15 @@ This guide explains how to build and run tests for the Tank Battle Simulator pro
 * Your project folder should have:
 
 ```
-/maps                 -> folder with game map files
-/bad_sos_for_testing_purposes
-/insufficient_algorithms
-/game_managers_folder -> folder with GameManager .so files
-/algorithms_folder    -> folder with algorithms .so files
-/Simulator            -> simulator source files
+/maps                         -> folder with game map files
+/bad_sos_for_testing_purposes -> folder containing broken/faulty algorithm .so files
+/insufficient_algorithms      -> folder containing only one algorithm .so file
+/game_managers_folder         -> must contain GameManager_322719139_211961057.so (may have others)
+/algorithms_folder            -> must contain at least two algorithms, one must be Algorithm_322868852_340849710.so (may have others)
+/Simulator                    -> simulator source files
 /common
 /UserCommon
-/tests                -> GoogleTest source files
+/tests                        -> GoogleTest source files
 ```
 
 ---
@@ -50,11 +50,11 @@ sudo apt install build-essential cmake libpthread-stubs0-dev
 
 5. **Project files** (should be included in repo)
 
-   * Simulator sources (`Simulator/*.cpp`)\
+   * Simulator sources (`Simulator/*.cpp`)
    * common sources (`common/*.cpp`)
    * UserCommon sources (`UserCommon/*.cpp`)
-   * game_managers_folder `.so` files
-   * algorithms_folder `.so` files (at least have two - one must be Algorithm_322719139_211961057.so )
+   * GameManager `.so` files (must include `GameManager_322719139_211961057.so`)
+   * Algorithms `.so` files (must include at least two algorithms, one must be `Algorithm_322868852_340849710.so`)
    * Maps folder with `.txt` map files
    * Tests folder with GoogleTest source files
 
@@ -85,7 +85,7 @@ cmake --build build
 ```
 
 * The simulator executable will be in `build/Simulator/`.
-* The tests executable will be in `build/tests`.
+* The tests executable will be in `build/tests/`.
 
 ---
 
@@ -102,8 +102,6 @@ Run the tests with:
 
 ---
 
----
-
 ## 5. Notes
 
 * Tests use absolute paths generated via `SOURCE_DIR` from CMake.
@@ -113,5 +111,17 @@ Run the tests with:
 comparative_results_YYYYMMDD_HHMMSS.txt
 ```
 
+* Output files for competitive mode are generated under `algorithms_folder` with names like:
+
+```
+competition_YYYYMMDD_HHMMSS.txt
+```
+
 * If a test fails, check the simulator exit code and the debug command printed.
 * Ensure `.so` files for GameManagers and Algorithms are built with `-fPIC` and available in the expected folders.
+* Folder conditions for tests:
+
+  * `algorithms_folder` → at least 2 algorithms, must include `Algorithm_322868852_340849710.so`.
+  * `game_managers_folder` → must include `GameManager_322719139_211961057.so`.
+  * `insufficient_algorithms` → only 1 algorithm `.so` (used for testing insufficient algorithm handling).
+  * `bad_sos_for_testing_purposes` → contains invalid/faulty algorithm `.so` files (used for testing simulator failure handling).
