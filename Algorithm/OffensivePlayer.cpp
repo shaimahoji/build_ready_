@@ -31,6 +31,7 @@ Player_322719139_211961057_A::Player_322719139_211961057_A(int player_index, siz
 
     std::cout << "---------- Player constructor ---------- \n";
     std::cout << "Board dimensions: " << board_width_ << "x" << board_height_ << "\n";
+    std::cout << "[DEBUG] Player constructor, player_index_ = " << player_index << "\n";
 
     size_t start_x = board_width_ / 2;
     size_t start_y = board_height_ / 2;
@@ -73,7 +74,8 @@ void Player_322719139_211961057_A::updateTankWithBattleInfo(TankAlgorithm& tank,
 
     std::cout << "[DEBUG] Tank index: " << tank_index << "\n";
 
-    if (tank_index < 0 || tank_index >= static_cast<int>(my_tanks_.size())) {
+    //if (tank_index < 0 || tank_index >= static_cast<int>(my_tanks_.size())) {
+    if (tank_index < 0) {
         std::cerr << "[Error] Tank index out of range\n";
         return;
     }
@@ -152,6 +154,9 @@ void Player_322719139_211961057_A::updateTankWithBattleInfo(TankAlgorithm& tank,
 
 
 void Player_322719139_211961057_A::updateBoardInfo(SatelliteView& satellite_view, int tank_index) {
+    std::cout << "---------- updateBoardInfo ---------- \n";
+    std::cout << "[DEBUG] updateBoardInfo() — player_index_ = " << player_index_ << "\n";
+
     observed_shells_.clear();
     
     size_t tank_x = 0, tank_y = 0;
@@ -205,6 +210,34 @@ void Player_322719139_211961057_A::updateBoardInfo(SatelliteView& satellite_view
 
 int Player_322719139_211961057_A::getTankIndexFromSatellite(const SatelliteView& satellite_view) {
     int tank_index = 0;
+    int result_index = -1;
+
+    for (size_t y = 0; y < board_height_; ++y) {
+        for (size_t x = 0; x < board_width_; ++x) {
+            char object = satellite_view.getObjectAt(x, y);
+
+            if (object == '1' || object == '2') {
+                tank_index++;
+            }
+
+            if (object == '%') {
+                result_index = tank_index;
+                std::cout << "[INDEX] Found self tank at (" << x << "," << y << "), index = " << result_index << "\n";
+            }
+        }
+    }
+
+    if (result_index == -1) {
+        std::cerr << "[ERROR] Failed to find '%' for self tank! Returning -1.\n";
+    }
+
+    return result_index;
+}
+
+
+/*
+int Player_322719139_211961057_A::getTankIndexFromSatellite(const SatelliteView& satellite_view) {
+    int tank_index = 0;
     std::cout << "---------- getTankIndexFromSatellite ---------- \n";
     std::cout << "Board dimensions: " << board_width_ << "x" << board_height_ << "\n";
 
@@ -214,101 +247,18 @@ int Player_322719139_211961057_A::getTankIndexFromSatellite(const SatelliteView&
             char object = satellite_view.getObjectAt(x, y);
 
             if(object =='1' || object == '2') {
-                tank_index += 1;
+                tank_index++;
             }else if(object == '%') {
+                std::cout << "[INDEX] Found self tank at (" << x << "," << y << "), index = " << tank_index << "\n";
                 return (tank_index);
             }
         }
     }
 
+    std::cerr << "[ERROR] Failed to find '%' for self tank! Returning -1.\n";
     return -1;
 }
-
-std::vector<std::pair<size_t, size_t>> Player_322719139_211961057_A::findPathOLD(
-    size_t start_x, size_t start_y, size_t goal_x, size_t goal_y) const {
-    struct Node {
-        size_t x, y;
-        double g_cost;
-        double h_cost;
-        double f_cost;
-        std::pair<size_t, size_t> parent;
-        
-        Node(size_t x, size_t y, double g, double h, std::pair<size_t, size_t> parent)
-            : x(x), y(y), g_cost(g), h_cost(h), f_cost(g + h), parent(parent) {}
-        
-        bool operator>(const Node& other) const {
-            return f_cost > other.f_cost;
-        }
-    };
-    
-    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
-    
-    std::unordered_set<size_t> closed_set;
-    
-    auto hash_position = [this](size_t x, size_t y) {
-        return y * board_width_ + x;
-    };
-    
-    auto heuristic = [](size_t x, size_t y, size_t goal_x, size_t goal_y) {
-        return std::abs(static_cast<int>(goal_x) - static_cast<int>(x)) + 
-               std::abs(static_cast<int>(goal_y) - static_cast<int>(y));
-    };
-    
-    open_set.push(Node(start_x, start_y, 0, heuristic(start_x, start_y, goal_x, goal_y), 
-                      {start_x, start_y}));
-    
-    const std::vector<std::pair<int, int>> directions = {
-        {0, -1}, {1, 0}, {0, 1}, {-1, 0},
-        {1, -1}, {1, 1}, {-1, 1}, {-1, -1}
-    };
-    
-    std::unordered_map<size_t, std::pair<size_t, size_t>> came_from;
-    
-    while (!open_set.empty()) {
-        Node current = open_set.top();
-        open_set.pop();
-        
-        if (current.x == goal_x && current.y == goal_y) {
-            std::vector<std::pair<size_t, size_t>> path;
-            std::pair<size_t, size_t> current_pos = {current.x, current.y};
-            
-            while (current_pos.first != start_x || current_pos.second != start_y) {
-                path.push_back(current_pos);
-                current_pos = came_from[hash_position(current_pos.first, current_pos.second)];
-            }
-            
-            std::reverse(path.begin(), path.end());
-            return path;
-        }
-        
-        closed_set.insert(hash_position(current.x, current.y));
-        
-        for (const auto& dir : directions) {
-            size_t new_x = current.x + dir.first;
-            size_t new_y = current.y + dir.second;
-            
-            if (isObstacle(new_x, new_y)) {
-                continue;
-            }
-            
-            if (closed_set.find(hash_position(new_x, new_y)) != closed_set.end()) {
-                continue;
-            }
-            
-            double new_g_cost = current.g_cost + 1;
-            
-            Node neighbor(new_x, new_y, new_g_cost, 
-                         heuristic(new_x, new_y, goal_x, goal_y), 
-                         {current.x, current.y});
-            
-            open_set.push(neighbor);
-            
-            came_from[hash_position(new_x, new_y)] = {current.x, current.y};
-        }
-    }
-    
-    return {};
-}
+*/
 
 Direction Player_322719139_211961057_A::estimateDirection(size_t prev_x, size_t prev_y, 
                                            size_t new_x, size_t new_y,Direction prev_dir) 
@@ -678,6 +628,7 @@ void Player_322719139_211961057_A::updateTargetPriorities() {
              });
 }
 
+//Idea: replace HOLD with PATROL if no targets
 void Player_322719139_211961057_A::createMissionsForTanks() {
     std::cout << "---------- createMissionsForTanks ---------- \n";
     mission_plans_per_tanks.clear();
@@ -710,6 +661,13 @@ void Player_322719139_211961057_A::createMissionsForTanks() {
 
         for (size_t j = 0; j < enemy_tanks_.size(); ++j) {
             const TankInfo& enemy_tank = enemy_tanks_[j];
+
+            // Skip self-targeting
+            if (enemy_tank.x == my_tank.x && enemy_tank.y == my_tank.y) {
+                std::cout << "[SKIP] Tank " << i << " skipping enemy " << j << " (same position)\n";
+                continue;
+            }
+
             TargetPriority* prio_ptr = enemy_priority_map.count(j) ? enemy_priority_map[j] : nullptr;
             double score = scoreTargetForTank(my_tank, enemy_tank, prio_ptr);
             if (score > -1e8) {
@@ -758,19 +716,8 @@ void Player_322719139_211961057_A::createMissionsForTanks() {
             mission_plans_per_tanks.push_back(fallback);
         }
     }
-
-    for (size_t i = 0; i < my_tanks_.size(); ++i) {
-        std::cout << "[Tank " << i << "] target scores:\n";
-        for (const auto& [target_idx, score] : tank_target_scores[i]) {
-            std::cout << "  -> Enemy " << target_idx << ": " << score << "\n";
-        }
-        if (tank_assignments[i] != SIZE_MAX) {
-            std::cout << "Assigned to enemy " << tank_assignments[i] << "\n";
-        } else {
-            std::cout << "No valid assignment\n";
-        }
-    }
 }
+
 
 std::optional<std::pair<int, int>> Player_322719139_211961057_A::findSafeRetreatPosition(const TankInfo& tank) const {
     auto [dx, dy] = DirectionUtil::getMovement(tank.direction);
@@ -828,8 +775,8 @@ bool Player_322719139_211961057_A::isTileUnderThreat(int x, int y) const {
 }
 
 MissionPlan Player_322719139_211961057_A::createMissionPlan(size_t my_tank_index, size_t enemy_tank_index) {
-    std::cout << "---------- createMissionPlan for tank ---------- " 
-              << my_tank_index << " targeting enemy " << enemy_tank_index << " --- \n";
+    //std::cout << "---------- createMissionPlan for tank ---------- " 
+              //<< my_tank_index << " targeting enemy " << enemy_tank_index << " --- \n";
     MissionPlan plan;
 
     if (my_tank_index >= my_tanks_.size() || enemy_tank_index >= enemy_tanks_.size()) {
@@ -842,7 +789,7 @@ MissionPlan Player_322719139_211961057_A::createMissionPlan(size_t my_tank_index
     const TankInfo& enemy_tank = enemy_tanks_[enemy_tank_index];
 
     PathResult path_result = findPath(my_tank.x, my_tank.y, enemy_tank.x, enemy_tank.y, last_board_state_);
-    
+    std::cout << "[MISSIONPLAN] Path length to enemy: " << path_result.path.size() << "\n";
     plan.setPath(path_result.path);
     plan.setWallsToDestroy(path_result.destroy);
     plan.setPositionX(enemy_tank.x);
@@ -1067,6 +1014,415 @@ PathResult Player_322719139_211961057_A::findPath(
     const std::vector<std::vector<char>>& board_state,
     size_t path_max_length) {
 
+    std::cout << "---------- findPath ---------- \n";
+
+    struct Node {
+        size_t x, y;
+        int cost;
+        bool operator<(const Node& other) const {
+            return cost > other.cost;  // Min-heap for priority queue
+        }
+    };
+
+    auto hash = [&](size_t x, size_t y) {
+        return y * board_state[0].size() + x;
+    };
+
+    std::priority_queue<Node> pq;
+    std::unordered_map<size_t, int> dist;
+    std::unordered_map<size_t, std::pair<size_t, size_t>> parent;
+    std::unordered_map<size_t, bool> needs_destroy;
+
+    pq.push({start_x, start_y, 0});
+    dist[hash(start_x, start_y)] = 0;
+
+    PathResult result;
+    bool found = false;
+    size_t end_x = start_x, end_y = start_y;
+
+    while (!pq.empty()) {
+        Node current = pq.top();
+        pq.pop();
+
+        if ((current.x == goal_x && current.y == goal_y) ||
+            (path_max_length > 0 && current.cost >= static_cast<int>(path_max_length))) {
+            end_x = current.x;
+            end_y = current.y;
+            found = true;
+            break;
+        }
+
+        if (dist[hash(current.x, current.y)] < current.cost)
+            continue;
+
+        for (Direction dir : DirectionUtil::allDirections()) {
+            auto [dx, dy] = DirectionUtil::getMovement(dir);
+            size_t nx = (current.x + dx + board_state[0].size()) % board_state[0].size();
+            size_t ny = (current.y + dy + board_state.size()) % board_state.size();
+            char cell = board_state[ny][nx];
+
+            int move_cost = getShootingCost(cell);  // INT_MAX = impassable
+            if (move_cost == INT_MAX) continue;
+
+            int new_cost = current.cost + move_cost;
+            size_t pos_hash = hash(nx, ny);
+
+            if (!dist.count(pos_hash) || new_cost < dist[pos_hash]) {
+                dist[pos_hash] = new_cost;
+                parent[pos_hash] = {current.x, current.y};
+                needs_destroy[pos_hash] = (cell == '#' || cell == '$');
+                pq.push({nx, ny, new_cost});
+            }
+        }
+    }
+
+    // Path reconstruction function
+    auto reconstruct_path = [&](size_t target_x, size_t target_y) {
+        std::vector<std::pair<size_t, size_t>> raw_path;
+        auto current = std::make_pair(target_x, target_y);
+
+        size_t max_attempts = board_state.size() * board_state[0].size(); // safety against infinite loops
+
+        while ((current.first != start_x || current.second != start_y) && max_attempts--) {
+            raw_path.push_back(current);
+            auto it = parent.find(hash(current.first, current.second));
+            if (it == parent.end()) {
+                std::cout << "[WARN] Incomplete path: missing parent for ("
+                          << current.first << "," << current.second << ")\n";
+                raw_path.clear();
+                break;
+            }
+            current = it->second;
+        }
+
+        if (raw_path.empty()) {
+            result.path.clear();
+            result.destroy.clear();
+            return;
+        }
+
+        std::reverse(raw_path.begin(), raw_path.end());
+        result.path = raw_path;
+
+        for (const auto& pos : result.path) {
+            size_t pos_hash = hash(pos.first, pos.second);
+            if (needs_destroy[pos_hash]) {
+                result.destroy.push_back(pos);
+            } else {
+                result.destroy.push_back(std::nullopt);
+            }
+        }
+
+        std::cout << "[DEBUG] Path length: " << result.path.size() << "\n";
+    };
+
+    if (found) {
+        reconstruct_path(end_x, end_y);
+    } else if (!dist.empty()) {
+        std::cout << "[DEBUG] Goal unreachable from (" << start_x << "," << start_y << ") → Using fallback\n";
+
+        size_t best_hash = 0;
+        int best_score = INT_MAX;
+
+        for (const auto& [pos_hash, cost] : dist) {
+            size_t x = pos_hash % board_state[0].size();
+            size_t y = pos_hash / board_state[0].size();
+            int heuristic = std::abs((int)x - (int)goal_x) + std::abs((int)y - (int)goal_y);
+            int score = cost + heuristic;
+
+            if (score < best_score) {
+                best_score = score;
+                best_hash = pos_hash;
+            }
+        }
+
+        size_t bx = best_hash % board_state[0].size();
+        size_t by = best_hash / board_state[0].size();
+        reconstruct_path(bx, by);
+    } else {
+        std::cout << "[DEBUG] No reachable cells from (" << start_x << "," << start_y << ")\n";
+        result.path.clear();
+        result.destroy.clear();
+    }
+
+    return result;
+}
+
+
+
+///////delete///////////
+PathResult Player_322719139_211961057_A::findPathOLD2(
+    size_t start_x, size_t start_y,
+    size_t goal_x, size_t goal_y,
+    const std::vector<std::vector<char>>& board_state,
+    size_t path_max_length)
+{
+    std::cout << "---------- findPath ---------- \n";
+    struct Node {
+        size_t x, y;
+        int cost;
+        bool operator<(const Node& other) const {
+            return cost > other.cost;  // Min-heap
+        }
+    };
+
+    std::priority_queue<Node> pq;
+    std::unordered_map<size_t, int> dist;
+    std::unordered_map<size_t, std::pair<size_t, size_t>> parent;
+    std::unordered_map<size_t, bool> needs_destroy;
+
+    auto hash = [&](size_t x, size_t y) {
+        return y * board_state[0].size() + x;
+    };
+
+    pq.push({start_x, start_y, 0});
+    dist[hash(start_x, start_y)] = 0;
+
+    PathResult result;
+    bool found = false;
+    size_t end_x = start_x, end_y = start_y;
+
+    while (!pq.empty()) {
+        Node current = pq.top();
+        pq.pop();
+
+        if ((current.x == goal_x && current.y == goal_y) ||
+            (path_max_length > 0 && current.cost >= static_cast<int>(path_max_length))) {
+            end_x = current.x;
+            end_y = current.y;
+            found = true;
+            break;
+        }
+
+        if (dist[hash(current.x, current.y)] < current.cost)
+            continue;
+
+        for (Direction dir : DirectionUtil::allDirections()) {
+            auto [dx, dy] = DirectionUtil::getMovement(dir);
+            size_t nx = current.x + dx;
+            size_t ny = current.y + dy;
+
+            if (nx >= board_state[0].size() || ny >= board_state.size()) continue;
+
+            char cell = board_state[ny][nx];
+            int move_cost = getShootingCost(cell);
+            if (move_cost == INT_MAX) continue;
+
+            int new_cost = current.cost + move_cost;
+            size_t pos_hash = hash(nx, ny);
+
+            if (!dist.count(pos_hash) || new_cost < dist[pos_hash]) {
+                dist[pos_hash] = new_cost;
+                parent[pos_hash] = {current.x, current.y};
+                needs_destroy[pos_hash] = (cell == '#' || cell == '$');
+                pq.push({nx, ny, new_cost});
+            }
+        }
+    }
+
+    // Reconstruct path to a given node
+    auto reconstruct_path = [&](size_t target_x, size_t target_y) {
+        std::vector<std::pair<size_t, size_t>> raw_path;
+        auto current = std::make_pair(target_x, target_y);
+
+        size_t max_attempts = board_state.size() * board_state[0].size(); // prevent infinite loops
+
+        while ((current.first != start_x || current.second != start_y) && max_attempts--) {
+            raw_path.push_back(current);
+            auto it = parent.find(hash(current.first, current.second));
+            if (it == parent.end()) {
+                std::cout << "[WARN] Incomplete path: missing parent for (" 
+                          << current.first << "," << current.second << ")\n";
+                raw_path.clear();
+                break;
+            }
+            current = it->second;
+        }
+
+        if (raw_path.empty()) {
+            result.path.clear();
+            result.destroy.clear();
+            return;
+        }
+
+        std::reverse(raw_path.begin(), raw_path.end());
+        result.path = raw_path;
+
+        for (const auto& pos : result.path) {
+            size_t pos_hash = hash(pos.first, pos.second);
+            if (needs_destroy[pos_hash]) {
+                result.destroy.push_back(pos);
+            } else {
+                result.destroy.push_back(std::nullopt);
+            }
+        }
+
+        std::cout << "[DEBUG] Path length: " << result.path.size() << "\n";
+    };
+
+    if (found) {
+        reconstruct_path(end_x, end_y);
+    } else if (!dist.empty()) {
+        std::cout << "[DEBUG] Goal unreachable from (" << start_x << "," << start_y << ") → Using fallback\n";
+
+        size_t best_hash = 0;
+        int best_score = INT_MAX;
+
+        for (const auto& [pos_hash, cost] : dist) {
+            size_t x = pos_hash % board_state[0].size();
+            size_t y = pos_hash / board_state[0].size();
+            int heuristic = std::abs((int)x - (int)goal_x) + std::abs((int)y - (int)goal_y);
+            int score = cost + heuristic;
+
+            if (score < best_score) {
+                best_score = score;
+                best_hash = pos_hash;
+            }
+        }
+
+        size_t bx = best_hash % board_state[0].size();
+        size_t by = best_hash / board_state[0].size();
+        reconstruct_path(bx, by);
+    } else {
+        std::cout << "[DEBUG] No reachable cells from (" << start_x << "," << start_y << ")\n";
+        result.path.clear();
+        result.destroy.clear();
+    }
+
+    return result;
+}
+
+
+// NEW + WORKS for competitive, checking other implementation for comparatives sake
+/*
+PathResult Player_322719139_211961057_A::findPath(
+    size_t start_x, size_t start_y,
+    size_t goal_x, size_t goal_y,
+    const std::vector<std::vector<char>>& board_state,
+    size_t path_max_length) {
+
+    struct Node {
+        size_t x, y;
+        int cost;
+        bool operator<(const Node& other) const {
+            return cost > other.cost;  // Min-heap
+        }
+    };
+
+    std::priority_queue<Node> pq;
+    std::unordered_map<size_t, int> dist;
+    std::unordered_map<size_t, std::pair<size_t, size_t>> parent;
+    std::unordered_map<size_t, bool> needs_destroy;
+
+    auto hash = [&](size_t x, size_t y) { return y * board_state[0].size() + x; };
+
+    pq.push({start_x, start_y, 0});
+    dist[hash(start_x, start_y)] = 0;
+
+    PathResult result;
+    bool found = false;
+    size_t end_x = start_x, end_y = start_y;
+
+    while (!pq.empty()) {
+        Node current = pq.top();
+        pq.pop();
+
+        if ((current.x == goal_x && current.y == goal_y) ||
+            (path_max_length > 0 && current.cost >= static_cast<int>(path_max_length))) {
+            end_x = current.x;
+            end_y = current.y;
+            found = true;
+            break;
+        }
+
+        if (dist[hash(current.x, current.y)] < current.cost)
+            continue;
+
+        auto all_directions = DirectionUtil::allDirections();
+        for (Direction dir : all_directions) {
+            auto [dx, dy] = DirectionUtil::getMovement(dir);
+            size_t nx = (current.x + dx + board_state[0].size()) % board_state[0].size();
+            size_t ny = (current.y + dy + board_state.size()) % board_state.size();
+            char cell = board_state[ny][nx];
+
+            int move_cost = getShootingCost(cell);  // INT_MAX = impassable
+            if (move_cost == INT_MAX) continue;
+
+            int new_cost = current.cost + move_cost;
+            size_t pos_hash = hash(nx, ny);
+
+            if (!dist.count(pos_hash) || new_cost < dist[pos_hash]) {
+                dist[pos_hash] = new_cost;
+                parent[pos_hash] = {current.x, current.y};
+                needs_destroy[pos_hash] = (cell == '#' || cell == '$');
+                pq.push({nx, ny, new_cost});
+            }
+        }
+    }
+
+    // Reconstruct path
+    auto reconstruct_path = [&](size_t target_x, size_t target_y) {
+        std::vector<std::pair<size_t, size_t>> raw_path;
+        auto current = std::make_pair(target_x, target_y);
+        while (current.first != start_x || current.second != start_y) {
+            raw_path.push_back(current);
+            current = parent[hash(current.first, current.second)];
+        }
+        std::reverse(raw_path.begin(), raw_path.end());
+        result.path = raw_path;
+
+        for (const auto& pos : result.path) {
+            size_t pos_hash = hash(pos.first, pos.second);
+            if (needs_destroy[pos_hash]) {
+                result.destroy.push_back(pos);
+            } else {
+                result.destroy.push_back(std::nullopt);
+            }
+        }
+    };
+
+    if (found) {
+        reconstruct_path(end_x, end_y);
+    } else if (!dist.empty()) {
+        std::cout << "[DEBUG] Goal unreachable from (" << start_x << "," << start_y << ") → Using fallback\n";
+
+        // Use closest reachable cell to goal
+        size_t best_hash = 0;
+        int best_score = INT_MAX;
+
+        for (const auto& [pos_hash, cost] : dist) {
+            size_t x = pos_hash % board_state[0].size();
+            size_t y = pos_hash / board_state[0].size();
+            int heuristic = std::abs((int)x - (int)goal_x) + std::abs((int)y - (int)goal_y);
+            int score = cost + heuristic;
+
+            if (score < best_score) {
+                best_score = score;
+                best_hash = pos_hash;
+            }
+        }
+
+        size_t bx = best_hash % board_state[0].size();
+        size_t by = best_hash / board_state[0].size();
+        reconstruct_path(bx, by);
+    } else {
+        std::cout << "[DEBUG] No reachable cells from (" << start_x << "," << start_y << ")\n";
+        result.path.clear();
+        result.destroy.clear();
+    }
+
+    return result;
+}
+*/
+
+
+/*
+PathResult Player_322719139_211961057_A::findPath(
+    size_t start_x, size_t start_y,
+    size_t goal_x, size_t goal_y,
+    const std::vector<std::vector<char>>& board_state,
+    size_t path_max_length) {
+
     std::priority_queue<Node> pq;
     std::unordered_map<size_t, int> dist;
     std::unordered_map<size_t, std::pair<size_t, size_t>> parent;
@@ -1138,6 +1494,7 @@ PathResult Player_322719139_211961057_A::findPath(
 
     return result;
 }
+*/
 
 } // namespace Algorithm_322719139_211961057
 

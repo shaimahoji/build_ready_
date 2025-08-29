@@ -1,5 +1,5 @@
 Unbalanced-2v7
-MaxSteps = 1000
+MaxSteps = 100
 NumShells=25
 Rows = 8
 Cols = 10

@@ -232,14 +232,14 @@ private:
     bool processShoot(TankData* tank_data);
     void updateShellsStepCount();
 
-    void readBoardFromSatellite(
+    bool readBoardFromSatellite(
     size_t map_width,
     size_t map_height,
     const SatelliteView& map,
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory);
     
-    void initializeTanks(
+    bool initializeTanks(
     const std::map<int, std::vector<std::pair<size_t, size_t>>>& player_tank_positions,
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory);

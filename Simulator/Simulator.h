@@ -29,9 +29,6 @@ struct GameMapInfo {
     size_t x1 = 0, y1 = 0;
     size_t x2 = 0, y2 = 0;
     std::unique_ptr<SatelliteView> view;
-    //std::unique_ptr<UserCommon_322719139_211961057::GameSatelliteView> view;
-    //std::unique_ptr<GameSatelliteView> view;
-    //std::unique_ptr<SatelliteView> view;
     std::map<int, std::vector<std::pair<size_t, size_t>>> player_tank_positions;
 };
 
@@ -66,9 +63,9 @@ public:
     void loadGameManagers(const std::string& folder_path, bool verbose);
 
     //void loadAlgorithms(const std::string& algorithms_folder, bool verbose);
-    void loadTwoAlgorithms(const std::string& algo1_path, const std::string& algo2_path, bool verbose);
+    bool loadTwoAlgorithms(const std::string& algo1_path, const std::string& algo2_path, bool verbose);
 
-    GameResult runSingleGame(const std::string &gmName, const GameMapInfo& mapInfo, const std::string& alg1, const std::string& alg2, bool verbose);
+    std::optional<GameResult> runSingleGame(const std::string &gmName, const GameMapInfo& mapInfo, const std::string& alg1, const std::string& alg2, bool verbose);
     using GroupedResults = std::map<std::tuple<std::string, size_t, std::string>, std::vector<std::string>>;
     GroupedResults groupResults(const GameMapInfo& map_info);
 
@@ -95,11 +92,8 @@ public:
         size_t num_threads,
         bool verbose);
 
-        
-
     std::vector<GameMapInfo> loadGameMaps(const std::string& game_maps_folder);
 
-    void loadAlgorithms(const std::string& algorithms_folder, bool verbose);
-
+    bool loadAlgorithms(const std::string& algorithms_folder, bool verbose);
 };
 

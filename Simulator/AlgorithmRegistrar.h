@@ -46,7 +46,7 @@ private:
 public:
     static AlgorithmRegistrar& getAlgorithmRegistrar();
 
-    void createAlgorithmFactoryEntry(const std::string& name);
+    bool createAlgorithmFactoryEntry(const std::string& name);
     void addPlayerFactoryToLastEntry(PlayerFactory&& factory);
     void addTankAlgorithmFactoryToLastEntry(TankAlgorithmFactory&& factory);
 

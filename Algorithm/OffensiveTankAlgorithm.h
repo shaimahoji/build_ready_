@@ -90,7 +90,8 @@ private:
     void updateSpecificBattleInfo(BattleInfo& info);
     Direction directionAfterRotationAction(ActionRequest action);
     
-    bool shouldRequestBattleInfo() const;
+    //bool shouldRequestBattleInfo() const;
+    bool shouldRequestBattleInfo();
     ActionRequest rotateToDirection(Direction target_direction) const;
     ActionRequest moveTowardsPosition(size_t target_x, size_t target_y) const;
     bool isPositionInFront(size_t x, size_t y) const;

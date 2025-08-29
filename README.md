@@ -113,9 +113,9 @@ We implemented auto-registration via:
 Factories are added to the `AlgorithmRegistrar` and `GameManagerRegistrar` singletons. Each algorithm registers itself via the macros:
 
 ```cpp
-REGISTER_TANK_ALGORITHM(OffensiveTankAlgorithm)
-REGISTER_PLAYER(OffensivePlayer)
-REGISTER_GAME_MANAGER(GameManager)
+REGISTER_TANK_ALGORITHM(TankAlgorithm_322719139_211961057_A);
+REGISTER_PLAYER(Player_322719139_211961057_A);
+REGISTER_GAME_MANAGER(MyGameManager_322719139_211961057);
 ```
 
 ---
@@ -207,6 +207,5 @@ Each part uses a unique namespace based on our IDs:
 ## 🧾 Additional Notes
 
 * No third-party libraries used beyond `nlohmann::json` (standard-approved)
-* `Simulator` gracefully handles crash-free logic but does not recover from .so file crashes (as permitted)
-
+* `Simulator` : .so files that fail to load or register are skipped, and behaviour afterwards is based on the mode — crashes are not permitted.
 * `GameManager` includes both log files and visualization JSON (per round)

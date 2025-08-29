@@ -15,6 +15,7 @@ namespace UserCommon_322719139_211961057 {
         size_t requesting_tank_x_;
         size_t requesting_tank_y_;
         int requesting_player_index_;
+        bool not_a_tank = false;
         
     public:
         explicit GameSatelliteView(const std::vector<std::vector<char>>& board);

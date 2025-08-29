@@ -27,7 +27,8 @@ TankAlgorithm_322719139_211961057_A::TankAlgorithm_322719139_211961057_A(int pla
       steps_until_next_info(0),
       need_battle_info_(true),
       last_info_step_(0),
-      info_request_interval_(player_index == 1 ? 5 : 3),
+      //info_request_interval_(player_index == 1 ? 5 : 3),
+      info_request_interval_(5),
       target_x_(0),
       target_y_(0),
       path_index_(0),
@@ -69,11 +70,20 @@ TankAlgorithm_322719139_211961057_A::TankAlgorithm_322719139_211961057_A(const T
 }
 
 void TankAlgorithm_322719139_211961057_A::updateBattleInfo(BattleInfo& info) {
+
     need_battle_info_ = false;
     last_info_step_ = current_step_;
     
     //MyBattleInfo& my_info = static_cast<MyBattleInfo&>(info);
     OffensiveBattleInfo& my_info = static_cast<OffensiveBattleInfo&>(info);
+    std::cout << "---------- updateBattleInfo(BattleInfo& info) called ----------\n";
+    std::cout << "[DEBUG] updateBattleInfo for tank " << tank_index_
+        << ", got step: " << my_info.getCurrentStep() << std::endl;
+
+    
+    int step_from_manager = my_info.getCurrentStep();
+    current_step_ = step_from_manager;
+    last_info_step_ = step_from_manager;
 
     current_x_ = my_info.getCurrentX();
     current_y_ = my_info.getCurrentY();
@@ -87,17 +97,19 @@ void TankAlgorithm_322719139_211961057_A::updateBattleInfo(BattleInfo& info) {
 
     board_ = my_info.getBoardState();
     
-    current_step_ = my_info.getCurrentStep();
+    //current_step_ = my_info.getCurrentStep();
     max_steps_ = my_info.getMaxSteps();
     
     updateSpecificBattleInfo(info);
 }
 
 ActionRequest TankAlgorithm_322719139_211961057_A::getAction() {
+    std::cout << "\n---------- getAction() called ----------\n";
+    
     current_step_++;
     steps_until_next_info++;
 
-    std::cout << "[DEBUG] Step: " << current_step_
+    std::cout << "[TANKALGO] Step: " << current_step_
               << ", Steps until next info: " << steps_until_next_info
               << ", Shells: " << remaining_shells_
               << ", Cooldown: " << cooldown_timer_ << "\n";
@@ -105,7 +117,7 @@ ActionRequest TankAlgorithm_322719139_211961057_A::getAction() {
     if (shouldRequestBattleInfo()) {
         std::cout << "[DEBUG] Requesting battle info (need_battle_info_=" 
                   << (need_battle_info_ ? "true" : "false") << ")\n";
-        need_battle_info_ = false;
+        //need_battle_info_ = false;
         return ActionRequest::GetBattleInfo;
     }
 
@@ -200,16 +212,28 @@ Direction TankAlgorithm_322719139_211961057_A::directionAfterRotationAction(Acti
     return current_direction_;
 }
 
-bool TankAlgorithm_322719139_211961057_A::shouldRequestBattleInfo() const {
+bool TankAlgorithm_322719139_211961057_A::shouldRequestBattleInfo() {
+    std::cout << "---------- shouldRequestBattleInfo() called at step " << current_step_ << "----------\n";
+    std::cout << "[TANKALGO] Tank " << tank_index_
+          << " current_step_: " << current_step_
+          << ", last_info_step_: " << last_info_step_
+          << ", need_battle_info_: " << need_battle_info_
+          << std::endl;
+
     if (need_battle_info_) {
+        need_battle_info_ = false;
         return true;
     }
 
     if (current_step_ - last_info_step_ >= info_request_interval_) {
+        std::cout << "current_step_: " << current_step_ << ", last_info_step_: " << last_info_step_ << ", info_request_interval_: " << info_request_interval_ << "\n";
+        std::cout << "[REQUEST] Info request interval reached (curr - last >= req). \n";
+        need_battle_info_ = false;
         return true;
     }
 
     if (max_steps_ > 0 && current_step_ >= max_steps_ * 0.9) {
+        std::cout << "[REQUEST] Approaching max steps (" << max_steps_ << "). Requesting info.\n";
         bool should_request = (current_step_ - last_info_step_ >= 2);
         return should_request;
     }
@@ -372,6 +396,71 @@ ActionRequest TankAlgorithm_322719139_211961057_A::takeAction() {
     return ActionRequest::DoNothing;
 }
 
+/*
+ActionRequest TankAlgorithm_322719139_211961057_A::determineOffensiveAction() {
+    std::cout << "---------- determineOffensiveAction called ----------\n";
+    MissionType mission = last_offensive_info_.getMissionType();
+    const auto& path = last_offensive_info_.getPath();
+    const auto& walls_to_destroy = last_offensive_info_.getWallsToDestroy();
+
+    std::cout << "[DEBUG] OffensiveTankAlgorithm: MissionType = " << static_cast<int>(mission) << "\n";
+    std::cout << "[DEBUG] OffensiveTankAlgorithm: Path size = " << path.size() 
+              << ", WallsToDestroy size = " << walls_to_destroy.size() << "\n";
+    std::cout << "[DEBUG] OffensiveTankAlgorithm: Path index = " << path_index_ 
+              << ", Can hit target = " << can_hit_target_ << "\n";
+    std::cout << "firing direction: " 
+              << DirectionUtil::toString(last_offensive_info_.getFiringDirection()) << "\n";
+
+    // Direct fire option
+    if (mission == MissionType::ATTACK && can_hit_target_) {
+        std::cout << "[DEBUG] ATTACK mission and target in range -> Shooting\n";
+        return ActionRequest::Shoot;
+    }
+
+    // Handle ATTACK or RETREAT with path
+    if ((mission == MissionType::ATTACK || mission == MissionType::RETREAT) && path_index_ < path.size()) {
+        const auto& [next_x, next_y] = path[path_index_];
+        std::string mission_str = (mission == MissionType::ATTACK) ? "ATTACK" : "RETREAT";
+        std::cout << "[DEBUG] " << mission_str << " mission: Next move to (" << next_x << ", " << next_y << ")\n";
+
+        if (path_index_ < walls_to_destroy.size() && walls_to_destroy[path_index_].has_value()) {
+            const auto& [obstacle_x, obstacle_y] = *walls_to_destroy[path_index_];
+            std::cout << "[DEBUG] " << mission_str << " mission: Wall in path at (" 
+                      << obstacle_x << ", " << obstacle_y << ") -> Deciding action to destroy\n";
+            return handleWallInPath(obstacle_x, obstacle_y);
+        }
+
+        std::cout << "[DEBUG] " << mission_str << " mission: Executing moveTowardsPosition logic\n";
+
+        ActionRequest action = moveTowardsPosition(next_x, next_y);
+        if (isRotationAction(action)) {
+            current_direction_ = directionAfterRotationAction(action);
+            std::cout << "current_direction_ after rotation: " 
+                      << DirectionUtil::toString(current_direction_) << "\n";
+            if (current_direction_ == getDirectionToPosition(next_x, next_y)) {
+                can_hit_target_ = true;
+                std::cout << can_hit_target_ << " can hit target after rotation\n";
+            }
+        } else if (action == ActionRequest::MoveForward) {
+            std::cout << "[DEBUG] MoveForward successful. Advancing path_index_ from "
+                      << path_index_ << " to " << (path_index_ + 1) << "\n";
+            path_index_++;
+        }
+
+        return action;
+    }
+
+    // HOLD mission
+    if (mission == MissionType::HOLD) {
+        std::cout << "[DEBUG] HOLD mission: Doing nothing\n";
+        return ActionRequest::DoNothing;
+    }
+
+    std::cout << "[DEBUG] Unknown mission or empty path: Defaulting to DoNothing\n";
+    return ActionRequest::DoNothing;
+}
+*/
+
 ActionRequest TankAlgorithm_322719139_211961057_A::determineOffensiveAction() {
     std::cout << "---------- determineOffensiveAction called ----------\n";
     MissionType mission = last_offensive_info_.getMissionType();
@@ -445,6 +534,7 @@ ActionRequest TankAlgorithm_322719139_211961057_A::determineOffensiveAction() {
     std::cout << "[DEBUG] Unknown mission or empty path: Defaulting to DoNothing\n";
     return ActionRequest::DoNothing;
 }
+
 
 ActionRequest TankAlgorithm_322719139_211961057_A::handleWallInPath(size_t wall_x, size_t wall_y) {
     Direction wall_direction = getDirectionToPosition(wall_x, wall_y);

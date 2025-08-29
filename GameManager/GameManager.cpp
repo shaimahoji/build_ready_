@@ -52,7 +52,7 @@ MyGameManager_322719139_211961057::~MyGameManager_322719139_211961057() {
 /* initializing the Game  */
 /**************************/
 
-void MyGameManager_322719139_211961057::readBoardFromSatellite(
+bool MyGameManager_322719139_211961057::readBoardFromSatellite(
     size_t map_width,
     size_t map_height,
     const SatelliteView& map,
@@ -113,15 +113,19 @@ void MyGameManager_322719139_211961057::readBoardFromSatellite(
 
     std::cout << "[DEBUG] Calling initializeTanks()\n";
 
-    initializeTanks(player_tank_positions, player1_tank_algo_factory, player2_tank_algo_factory);
-    std::cout << "[DEBUG] Exiting readBoardFromSatellite()\n";
+    if(!initializeTanks(player_tank_positions, player1_tank_algo_factory, player2_tank_algo_factory)) {
+        std::cerr << "[Error] Failed to initialize tanks.\n";
+        return false;
+    }
+
+    return true;
 }
 
 
 //HW2 implementation so far : the one i want to keep
 // Assuming that the players and factories have been initialized in run(...),
 // this function initializes tanks based on the provided tank positions.
-void MyGameManager_322719139_211961057::initializeTanks(
+bool MyGameManager_322719139_211961057::initializeTanks(
     const std::map<int, std::vector<std::pair<size_t, size_t>>>& player_tank_positions,
     TankAlgorithmFactory player1_tank_algo_factory,
     TankAlgorithmFactory player2_tank_algo_factory
@@ -173,10 +177,9 @@ void MyGameManager_322719139_211961057::initializeTanks(
             (player_idx == 1 ? player1_tank_algo_factory : player2_tank_algo_factory)(player_idx, corrected_tank_idx);
 
         if (!tank_algorithm) {
-            std::ostringstream oss;
-            oss << "[FATAL] TankAlgorithm factory returned nullptr for player "
-                << player_idx << ", tank " << corrected_tank_idx;
-            throw std::runtime_error(oss.str());
+            std::cerr << "[Error] TankAlgorithm factory returned nullptr for player "
+                    << player_idx << ", tank " << corrected_tank_idx << "\n";
+            return false;
         }
 
         tanks_.emplace_back(std::move(tank_data), std::move(tank_algorithm));
@@ -184,6 +187,7 @@ void MyGameManager_322719139_211961057::initializeTanks(
 
     overall_shells = total_tanks * num_shells_;
     ordered_actions.resize(tanks_.size(), {"UNKNOWN", false});
+    return true;
 }
 
 /********* Helper functions to make readBoard more concise and readable ************/
@@ -289,16 +293,24 @@ GameResult MyGameManager_322719139_211961057::run(
 
     std::cout << "[DEBUG] About to readBoardFromSatellite()" << std::endl;
     // Step 3: Read board from SatelliteView + Initialize tanks by calling initializePlayersAndTanks
-    readBoardFromSatellite(map_width, map_height, map, player1_tank_algo_factory, player2_tank_algo_factory);    
-    std::cout << "[DEBUG] Finished reading board\n";
+    if(!readBoardFromSatellite(map_width, map_height, map, player1_tank_algo_factory, player2_tank_algo_factory)) {
+        std::cerr << "[Error] Failed to read board from SatelliteView or initialize tanks.\n";
+        GameResult error_result;
+        error_result.winner = 0; // tie
+        error_result.reason = GameResult::Reason::ALL_TANKS_DEAD; // or some other reason indicating failure
+        error_result.rounds = 0;
+        error_result.remaining_tanks = {0, 0};
+        error_result.gameState = nullptr;
+        return error_result;
+    } 
 
     // Step 4: Update overlays and run game loop
     // Refreshes board_ with all tanks, walls, shells, etc.
     // Needed before loop for correct GameState, SatelliteView, and output. (so don't delete it)
     updateBoard();
-    std::cout << "[DEBUG] Finished updateBoard\n";
+    //std::cout << "[DEBUG] Finished updateBoard\n";
 
-    std::cout << "[DEBUG] About to executeGameLoop()" << std::endl;
+    //std::cout << "[DEBUG] About to executeGameLoop()" << std::endl;
     executeGameLoop();
     std::cout << "[DEBUG] Finished game loop\n";
 
@@ -634,7 +646,7 @@ void MyGameManager_322719139_211961057::logToFile() {
 /* processing Game step */
 /*************************/
 void MyGameManager_322719139_211961057::processGameStep() {
-    std::cout << "Processing game step " << current_step_ << "\n";
+    std::cout << "------------------ processGameStep: " << current_step_ << "------------------\n";
     
     // Process each tank in the unified tanks_ vector (maintains spawn order)
     for (size_t tank_index = 0; tank_index < tanks_.size(); ++tank_index) {
@@ -645,7 +657,7 @@ void MyGameManager_322719139_211961057::processGameStep() {
             continue;
         }
         
-        std::cout << "Processing tank " << tank.data.tank_index << " for player " << tank.data.player_index << "\n";
+        std::cout << "[GameManager] Processing tank " << tank.data.tank_index << " for player " << tank.data.player_index << "\n";
         
         if (!tank.algorithm) {
             std::cerr << "Error: Tank algorithm is null for player " << tank.data.player_index

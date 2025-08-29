@@ -9,6 +9,7 @@ namespace UserCommon_322719139_211961057 {
 GameSatelliteView::GameSatelliteView(const std::vector<std::vector<char>>& board)
     : board_(board), requesting_tank_x_(0), requesting_tank_y_(0), requesting_player_index_(0) {
         std::cout << "---------- GameSatelliteView Constructed by board ----------\n";
+        not_a_tank = true;
     }
 
     
@@ -19,6 +20,7 @@ GameSatelliteView::GameSatelliteView(const std::vector<std::vector<char>>& board
       requesting_tank_y_(tank_y),
       requesting_player_index_(player_index) {
         std::cout << "---------- GameSatelliteView Constructed by values ----------\n";
+        not_a_tank = false;
     }
 
 
@@ -29,7 +31,7 @@ char GameSatelliteView::getObjectAt(size_t x, size_t y) const {
     }
     
     // If this is the requesting tank's position, return '%'
-    if (x == requesting_tank_x_ && y == requesting_tank_y_) {
+    if (x == requesting_tank_x_ && y == requesting_tank_y_ && !not_a_tank) {
         return '%';  // The tank which requested the info
     }
     

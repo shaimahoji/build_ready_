@@ -147,7 +147,6 @@ private:
     // Helper method to update tank and enemy information from satellite view
     void updateBoardInfo(SatelliteView& satellite_view, int tank_index);
     
-    std::vector<std::pair<size_t, size_t>> findPathOLD(size_t start_x, size_t start_y, size_t goal_x, size_t goal_y) const;
     
     // Helper method to update direction
     Direction estimateDirection(size_t prev_x, size_t prev_y, 
@@ -219,6 +218,11 @@ private:
     int getShootingCost(char cell);
     PathResult findPath(size_t start_x, size_t start_y, size_t goal_x, size_t goal_y, 
         const std::vector<std::vector<char>>& board_state, size_t path_max_length = 5);
+    PathResult findPathOLD2(
+    size_t start_x, size_t start_y,
+    size_t goal_x, size_t goal_y,
+    const std::vector<std::vector<char>>& board_state,
+    size_t path_max_length);
 
     bool shouldAttemptHit(size_t from_x, size_t from_y, Direction direction, size_t target_x, size_t target_y) const;
 };

@@ -1,5 +1,5 @@
 Simple-Battlefield
-MaxSteps = 100
+MaxSteps = 500
 NumShells=15
 Rows = 6
 Cols = 10
