@@ -5,8 +5,10 @@
 
 TEST(SimulatorComparative, RunComparativeTest) {
     std::cout << "Running the first test\n";
+    std::string simulator = std::string(SOURCE_DIR) + "/build/Simulator/simulator_322719139_211961057";
+
     std::string command = 
-        "./Simulator/simulator_322719139_211961057 "
+        simulator + " "
         "-comparative "
         "game_map=" + std::string(SOURCE_DIR) + "/game_map.txt "
         "game_managers_folder=" + std::string(SOURCE_DIR) + "/game_managers_folder "

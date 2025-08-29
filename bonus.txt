@@ -1,4 +1,4 @@
-# Tank Battle Simulator – Running GTests
+# Tank Battle Simulator – Running Tests
 
 This guide explains how to build and run tests for the Tank Battle Simulator project, including comparative and competitive modes.
 
@@ -13,6 +13,8 @@ This guide explains how to build and run tests for the Tank Battle Simulator pro
 
 ```
 /maps                 -> folder with game map files
+/bad_sos_for_testing_purposes
+/insufficient_algorithms
 /game_managers_folder -> folder with GameManager .so files
 /algorithms_folder    -> folder with algorithms .so files
 /Simulator            -> simulator source files
