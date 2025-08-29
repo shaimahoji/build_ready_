@@ -100,8 +100,6 @@ Run the tests with:
 
 ---
 
----
-
 ## 5. Notes
 
 * Tests use absolute paths generated via `SOURCE_DIR` from CMake.
