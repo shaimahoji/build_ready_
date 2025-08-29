@@ -1,4 +1,4 @@
-# Tank Battle Simulator – Running Tests
+# Tank Battle Simulator – Running GTests
 
 This guide explains how to build and run tests for the Tank Battle Simulator project, including comparative and competitive modes.
 
